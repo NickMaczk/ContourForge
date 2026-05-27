@@ -1,0 +1,54 @@
+# Builds
+Builds/
+build/
+cmake-build-*/
+out/
+
+# JUCE / Projucer generated caches
+JuceLibraryCode/
+*.jucer.user
+
+# Visual Studio
+.vs/
+*.user
+*.suo
+*.VC.db
+*.VC.opendb
+ipch/
+x64/
+x86/
+Debug/
+Release/
+
+# Editor folders
+.vscode/
+.idea/
+
+# CMake
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+compile_commands.json
+
+# Xcode / macOS
+DerivedData/
+*.xcuserstate
+xcuserdata/
+.DS_Store
+
+# Binaries
+*.exe
+*.dll
+*.lib
+*.pdb
+*.ilk
+*.obj
+*.o
+*.app
+*.dylib
+*.so
+
+# Logs / temp
+*.log
+*.tmp
+*.bak
