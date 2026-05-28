@@ -38,14 +38,14 @@ private:
     enum class PreviewMode
     {
         heightMap,
-        ambientOcclusion
+        cavity
     };
 
     std::vector<ProfilePoint> profilePoints;
 
     PreviewShape previewShape = PreviewShape::circle;
     PreviewMode previewMode = PreviewMode::heightMap;
-    float aoPropagation = 0.22f;
+    float cavityPropagation = 0.22f;
 
     juce::String statusText;
     std::unique_ptr<juce::FileChooser> fileChooser;

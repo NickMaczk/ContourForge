@@ -153,11 +153,11 @@ void MainComponent::mouseDown (const juce::MouseEvent& e)
 
         const auto heightButton = modeRow.removeFromLeft (72.0f);
         modeRow.removeFromLeft (8.0f);
-        const auto aoButton = modeRow.removeFromLeft (48.0f);
+        const auto cavityButton = modeRow.removeFromLeft (48.0f);
         modeRow.removeFromLeft (8.0f);
-        const auto aoMinusButton = modeRow.removeFromLeft (56.0f);
+        const auto cavityMinusButton = modeRow.removeFromLeft (56.0f);
         modeRow.removeFromLeft (8.0f);
-        const auto aoPlusButton = modeRow.removeFromLeft (56.0f);
+        const auto cavityPlusButton = modeRow.removeFromLeft (56.0f);
 
         if (circleButton.contains (mouse))
         {
@@ -180,25 +180,25 @@ void MainComponent::mouseDown (const juce::MouseEvent& e)
             return;
         }
 
-        if (aoButton.contains (mouse))
+        if (cavityButton.contains (mouse))
         {
-            previewMode = PreviewMode::ambientOcclusion;
+            previewMode = PreviewMode::cavity;
             repaint();
             return;
         }
 
-        if (aoMinusButton.contains (mouse))
+        if (cavityMinusButton.contains (mouse))
         {
-            aoPropagation = juce::jlimit (0.04f, 0.80f, aoPropagation - 0.04f);
-            previewMode = PreviewMode::ambientOcclusion;
+            cavityPropagation = juce::jlimit (0.04f, 0.80f, cavityPropagation - 0.04f);
+            previewMode = PreviewMode::cavity;
             repaint();
             return;
         }
 
-        if (aoPlusButton.contains (mouse))
+        if (cavityPlusButton.contains (mouse))
         {
-            aoPropagation = juce::jlimit (0.04f, 0.80f, aoPropagation + 0.04f);
-            previewMode = PreviewMode::ambientOcclusion;
+            cavityPropagation = juce::jlimit (0.04f, 0.80f, cavityPropagation + 0.04f);
+            previewMode = PreviewMode::cavity;
             repaint();
             return;
         }
@@ -386,8 +386,8 @@ juce::var MainComponent::createProjectState() const
 
     root->setProperty ("version", 2);
     root->setProperty ("previewShape", previewShape == PreviewShape::circle ? "circle" : "square");
-    root->setProperty ("previewMode", previewMode == PreviewMode::ambientOcclusion ? "ambientOcclusion" : "heightMap");
-    root->setProperty ("aoPropagation", aoPropagation);
+    root->setProperty ("previewMode", previewMode == PreviewMode::cavity ? "cavity" : "heightMap");
+    root->setProperty ("cavityPropagation", cavityPropagation);
 
     juce::Array<juce::var> points;
 
@@ -441,11 +441,11 @@ bool MainComponent::applyProjectState (const juce::var& state)
         ? PreviewShape::square
         : PreviewShape::circle;
 
-    previewMode = root->getProperty ("previewMode").toString() == "ambientOcclusion"
-        ? PreviewMode::ambientOcclusion
+    previewMode = root->getProperty ("previewMode").toString() == "cavity"
+        ? PreviewMode::cavity
         : PreviewMode::heightMap;
 
-    aoPropagation = juce::jlimit (0.04f, 0.80f, (float) (double) root->getProperty ("aoPropagation"));
+    cavityPropagation = juce::jlimit (0.04f, 0.80f, (float) (double) root->getProperty ("cavityPropagation"));
 
     selectedPointIndex = -1;
     draggedPointIndex = -1;
@@ -555,11 +555,11 @@ void MainComponent::drawPreview (juce::Graphics& g, juce::Rectangle<float> area)
 
     const auto heightButton = modeRow.removeFromLeft (72.0f);
     modeRow.removeFromLeft (8.0f);
-    const auto aoButton = modeRow.removeFromLeft (48.0f);
+    const auto cavityButton = modeRow.removeFromLeft (48.0f);
     modeRow.removeFromLeft (8.0f);
-    const auto aoMinusButton = modeRow.removeFromLeft (56.0f);
+    const auto cavityMinusButton = modeRow.removeFromLeft (56.0f);
     modeRow.removeFromLeft (8.0f);
-    const auto aoPlusButton = modeRow.removeFromLeft (56.0f);
+    const auto cavityPlusButton = modeRow.removeFromLeft (56.0f);
 
     auto drawShapeButton = [&] (juce::Rectangle<float> button, const juce::String& text, bool selected)
     {
@@ -577,9 +577,9 @@ void MainComponent::drawPreview (juce::Graphics& g, juce::Rectangle<float> area)
     drawShapeButton (circleButton, "Circle", previewShape == PreviewShape::circle);
     drawShapeButton (squareButton, "Square", previewShape == PreviewShape::square);
     drawShapeButton (heightButton, "Height", previewMode == PreviewMode::heightMap);
-    drawShapeButton (aoButton, "AO", previewMode == PreviewMode::ambientOcclusion);
-    drawShapeButton (aoMinusButton, "AO-", false);
-    drawShapeButton (aoPlusButton, "AO+", false);
+    drawShapeButton (cavityButton, "Cavity", previewMode == PreviewMode::cavity);
+    drawShapeButton (cavityMinusButton, "Cav-", false);
+    drawShapeButton (cavityPlusButton, "Cav+", false);
 
     auto shapeArea = area.reduced (84.0f, 92.0f);
     const auto side = juce::jmin (shapeArea.getWidth(), shapeArea.getHeight());
@@ -605,11 +605,11 @@ void MainComponent::drawPreview (juce::Graphics& g, juce::Rectangle<float> area)
         return juce::jlimit (0.0f, 1.0f, sample.y);
     };
 
-    auto ambientOcclusionAt = [&] (float profileX)
+    auto cavityAt = [&] (float profileX)
     {
         const auto current = heightValueAt (profileX);
 
-        const auto radius = aoPropagation;
+        const auto radius = cavityPropagation;
         constexpr int sampleCount = 18;
 
         float occlusion = 0.0f;
@@ -637,9 +637,9 @@ void MainComponent::drawPreview (juce::Graphics& g, juce::Rectangle<float> area)
 
     auto colourAt = [&] (float profileX, float)
     {
-        if (previewMode == PreviewMode::ambientOcclusion)
+        if (previewMode == PreviewMode::cavity)
         {
-            const auto value = ambientOcclusionAt (profileX);
+            const auto value = cavityAt (profileX);
             return juce::Colour::fromFloatRGBA (value, value, value, 1.0f);
         }
 
