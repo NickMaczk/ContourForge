@@ -58,18 +58,35 @@ void MainComponent::mouseDown (const juce::MouseEvent& e)
 
     if (getColourProfileBarArea().contains (mouse))
     {
-        auto profileBar = getColourProfileBarArea();
+        auto bar = getColourProfileBarArea();
 
-        constexpr float pillWidth = 78.0f;
         constexpr float pillHeight = 24.0f;
         constexpr float gap = 8.0f;
 
-        auto toolbar = profileBar.removeFromRight (230.0f);
+        const auto previousPill = juce::Rectangle<float> (bar.getX(), bar.getY(), 32.0f, pillHeight);
+        const auto profilePill = juce::Rectangle<float> (previousPill.getRight() + gap, bar.getY(), 104.0f, pillHeight);
+        const auto nextPill = juce::Rectangle<float> (profilePill.getRight() + gap, bar.getY(), 32.0f, pillHeight);
 
-        const auto duplicatePill = juce::Rectangle<float> (toolbar.getX(), toolbar.getY(), 46.0f, pillHeight);
-        const auto deletePill = juce::Rectangle<float> (duplicatePill.getRight() + gap, toolbar.getY(), 46.0f, pillHeight);
-        const auto minusPill = juce::Rectangle<float> (deletePill.getRight() + gap, toolbar.getY(), 58.0f, pillHeight);
-        const auto plusPill = juce::Rectangle<float> (minusPill.getRight() + gap, toolbar.getY(), 58.0f, pillHeight);
+        const auto duplicatePill = juce::Rectangle<float> (nextPill.getRight() + gap * 2.0f, bar.getY(), 46.0f, pillHeight);
+        const auto deletePill = juce::Rectangle<float> (duplicatePill.getRight() + gap, bar.getY(), 46.0f, pillHeight);
+        const auto minusPill = juce::Rectangle<float> (deletePill.getRight() + gap, bar.getY(), 58.0f, pillHeight);
+        const auto plusPill = juce::Rectangle<float> (minusPill.getRight() + gap, bar.getY(), 58.0f, pillHeight);
+
+        auto selectRelativeProfile = [&] (int delta)
+        {
+            if (colourProfiles.empty())
+                return;
+
+            selectedColourProfileIndex += delta;
+
+            if (selectedColourProfileIndex < 0)
+                selectedColourProfileIndex = (int) colourProfiles.size() - 1;
+
+            if (selectedColourProfileIndex >= (int) colourProfiles.size())
+                selectedColourProfileIndex = 0;
+
+            repaint();
+        };
 
         auto moveSelectedProfileAngle = [&] (float delta)
         {
@@ -87,6 +104,18 @@ void MainComponent::mouseDown (const juce::MouseEvent& e)
 
             repaint();
         };
+
+        if (previousPill.contains (mouse))
+        {
+            selectRelativeProfile (-1);
+            return;
+        }
+
+        if (nextPill.contains (mouse))
+        {
+            selectRelativeProfile (1);
+            return;
+        }
 
         if (duplicatePill.contains (mouse) && ! colourProfiles.empty())
         {
@@ -122,25 +151,6 @@ void MainComponent::mouseDown (const juce::MouseEvent& e)
         {
             moveSelectedProfileAngle (15.0f);
             return;
-        }
-
-        for (int i = 0; i < (int) colourProfiles.size(); ++i)
-        {
-            const auto pill = juce::Rectangle<float> (
-                profileBar.getX() + (pillWidth + gap) * (float) i,
-                profileBar.getY(),
-                pillWidth,
-                pillHeight);
-
-            if (pill.getRight() > profileBar.getRight())
-                break;
-
-            if (pill.contains (mouse))
-            {
-                selectedColourProfileIndex = i;
-                repaint();
-                return;
-            }
         }
 
         return;
@@ -484,59 +494,50 @@ void MainComponent::drawProfileEditor (juce::Graphics& g, juce::Rectangle<float>
 
 void MainComponent::drawColourProfileBar (juce::Graphics& g, juce::Rectangle<float> area)
 {
-    constexpr float pillWidth = 78.0f;
     constexpr float pillHeight = 24.0f;
     constexpr float gap = 8.0f;
 
-    auto profileBar = area;
-    auto toolbar = profileBar.removeFromRight (230.0f);
+    const auto previousPill = juce::Rectangle<float> (area.getX(), area.getY(), 32.0f, pillHeight);
+    const auto profilePill = juce::Rectangle<float> (previousPill.getRight() + gap, area.getY(), 104.0f, pillHeight);
+    const auto nextPill = juce::Rectangle<float> (profilePill.getRight() + gap, area.getY(), 32.0f, pillHeight);
 
-    g.setFont (juce::FontOptions (12.0f, juce::Font::bold));
+    const auto duplicatePill = juce::Rectangle<float> (nextPill.getRight() + gap * 2.0f, area.getY(), 46.0f, pillHeight);
+    const auto deletePill = juce::Rectangle<float> (duplicatePill.getRight() + gap, area.getY(), 46.0f, pillHeight);
+    const auto minusPill = juce::Rectangle<float> (deletePill.getRight() + gap, area.getY(), 58.0f, pillHeight);
+    const auto plusPill = juce::Rectangle<float> (minusPill.getRight() + gap, area.getY(), 58.0f, pillHeight);
 
-    for (int i = 0; i < (int) colourProfiles.size(); ++i)
+    auto drawButton = [&] (juce::Rectangle<float> button, const juce::String& text, bool enabled = true, bool selected = false)
     {
-        const auto pill = juce::Rectangle<float> (
-            profileBar.getX() + (pillWidth + gap) * (float) i,
-            profileBar.getY(),
-            pillWidth,
-            pillHeight);
-
-        if (pill.getRight() > profileBar.getRight())
-            break;
-
-        const auto isSelected = i == selectedColourProfileIndex;
-
-        g.setColour (juce::Colours::white.withAlpha (isSelected ? 0.18f : 0.07f));
-        g.fillRoundedRectangle (pill, 6.0f);
-
-        g.setColour (juce::Colours::white.withAlpha (isSelected ? 0.85f : 0.35f));
-        g.drawRoundedRectangle (pill, 6.0f, isSelected ? 2.0f : 1.0f);
-
-        const auto text = "P" + juce::String (i + 1) + "  " + juce::String ((int) colourProfiles[(size_t) i].angleDeg) + "deg";
-        g.drawText (text, pill.reduced (6.0f, 0.0f), juce::Justification::centredLeft);
-    }
-
-    const auto duplicatePill = juce::Rectangle<float> (toolbar.getX(), toolbar.getY(), 46.0f, pillHeight);
-    const auto deletePill = juce::Rectangle<float> (duplicatePill.getRight() + gap, toolbar.getY(), 46.0f, pillHeight);
-    const auto minusPill = juce::Rectangle<float> (deletePill.getRight() + gap, toolbar.getY(), 58.0f, pillHeight);
-    const auto plusPill = juce::Rectangle<float> (minusPill.getRight() + gap, toolbar.getY(), 58.0f, pillHeight);
-
-    auto drawSmallButton = [&] (juce::Rectangle<float> button, const juce::String& text, bool enabled = true)
-    {
-        g.setColour (juce::Colours::white.withAlpha (enabled ? 0.07f : 0.03f));
+        g.setColour (juce::Colours::white.withAlpha (selected ? 0.18f : (enabled ? 0.07f : 0.03f)));
         g.fillRoundedRectangle (button, 6.0f);
 
-        g.setColour (juce::Colours::white.withAlpha (enabled ? 0.35f : 0.14f));
-        g.drawRoundedRectangle (button, 6.0f, 1.0f);
+        g.setColour (juce::Colours::white.withAlpha (selected ? 0.85f : (enabled ? 0.35f : 0.14f)));
+        g.drawRoundedRectangle (button, 6.0f, selected ? 2.0f : 1.0f);
 
-        g.setColour (juce::Colours::white.withAlpha (enabled ? 0.55f : 0.22f));
-        g.drawText (text, button.reduced (7.0f, 0.0f), juce::Justification::centredLeft);
+        g.setColour (juce::Colours::white.withAlpha (enabled ? 0.62f : 0.22f));
+        g.drawText (text, button.reduced (7.0f, 0.0f), juce::Justification::centred);
     };
 
-    drawSmallButton (duplicatePill, "+P");
-    drawSmallButton (deletePill, "Del", colourProfiles.size() > 1);
-    drawSmallButton (minusPill, "-15deg");
-    drawSmallButton (plusPill, "+15deg");
+    const auto hasProfiles = ! colourProfiles.empty();
+
+    drawButton (previousPill, "<", hasProfiles);
+    drawButton (nextPill, ">", hasProfiles);
+
+    juce::String profileText = "No profile";
+
+    if (hasProfiles)
+    {
+        const auto indexText = juce::String (selectedColourProfileIndex + 1) + "/" + juce::String ((int) colourProfiles.size());
+        const auto angleText = juce::String ((int) colourProfiles[(size_t) selectedColourProfileIndex].angleDeg) + "deg";
+        profileText = "P" + indexText + "  " + angleText;
+    }
+
+    drawButton (profilePill, profileText, hasProfiles, true);
+
+    drawButton (duplicatePill, "+P", hasProfiles);
+    drawButton (deletePill, "Del", colourProfiles.size() > 1);
+    drawButton (minusPill, "-15deg", hasProfiles);
+    drawButton (plusPill, "+15deg", hasProfiles);
 }
 
 void MainComponent::drawColourPalette (juce::Graphics& g, juce::Rectangle<float> area)
