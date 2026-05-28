@@ -104,6 +104,7 @@ void MainComponent::mouseDown (const juce::MouseEvent& e)
             if (marker.getDistanceFrom (mouse) <= 14.0f)
             {
                 selectedColourProfileIndex = i;
+                draggedColourProfileIndex = i;
                 repaint();
                 return;
             }
@@ -273,6 +274,31 @@ void MainComponent::mouseDown (const juce::MouseEvent& e)
 
 void MainComponent::mouseDrag (const juce::MouseEvent& e)
 {
+    if (draggedColourProfileIndex >= 0)
+    {
+        auto previewArea = getPreviewArea();
+        auto shapeArea = previewArea.reduced (84.0f, 92.0f);
+        const auto side = juce::jmin (shapeArea.getWidth(), shapeArea.getHeight());
+        shapeArea = shapeArea.withSizeKeepingCentre (side, side);
+
+        const auto centre = shapeArea.getCentre();
+        const auto dx = e.position.x - centre.x;
+        const auto dy = e.position.y - centre.y;
+
+        auto angle = std::atan2 (dy, dx) * 180.0f / juce::MathConstants<float>::pi + 90.0f;
+
+        while (angle < 0.0f)
+            angle += 360.0f;
+
+        while (angle >= 360.0f)
+            angle -= 360.0f;
+
+        colourProfiles[(size_t) draggedColourProfileIndex].angleDeg = angle;
+
+        repaint();
+        return;
+    }
+
     if (draggedPointIndex < 0)
         return;
 
@@ -284,6 +310,7 @@ void MainComponent::mouseDrag (const juce::MouseEvent& e)
 
 void MainComponent::mouseUp (const juce::MouseEvent&)
 {
+    draggedColourProfileIndex = -1;
     draggedPointIndex = -1;
 }
 

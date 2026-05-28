@@ -47,6 +47,7 @@ private:
 
     PreviewShape previewShape = PreviewShape::circle;
     int selectedColourProfileIndex = 0;
+    int draggedColourProfileIndex = -1;
     int draggedPointIndex = -1;
     int selectedPointIndex = -1;
 
