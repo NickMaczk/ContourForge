@@ -82,19 +82,50 @@ void MainComponent::mouseDown (const juce::MouseEvent& e)
 
         const auto addX = bar.getX() + (pillWidth + gap) * (float) colourProfiles.size();
         const auto addPill = juce::Rectangle<float> (addX, bar.getY(), 96.0f, pillHeight);
+        const auto minusPill = juce::Rectangle<float> (addPill.getRight() + gap, bar.getY(), 58.0f, pillHeight);
+        const auto plusPill = juce::Rectangle<float> (minusPill.getRight() + gap, bar.getY(), 58.0f, pillHeight);
+
+        auto moveSelectedProfileAngle = [&] (float delta)
+        {
+            if (colourProfiles.empty())
+                return;
+
+            auto& angle = colourProfiles[(size_t) selectedColourProfileIndex].angleDeg;
+            angle += delta;
+
+            while (angle < 0.0f)
+                angle += 360.0f;
+
+            while (angle >= 360.0f)
+                angle -= 360.0f;
+
+            repaint();
+        };
 
         if (addPill.contains (mouse) && ! colourProfiles.empty())
         {
             auto clone = colourProfiles[(size_t) selectedColourProfileIndex];
             clone.angleDeg += 90.0f;
 
-            if (clone.angleDeg >= 360.0f)
+            while (clone.angleDeg >= 360.0f)
                 clone.angleDeg -= 360.0f;
 
             colourProfiles.push_back (clone);
             selectedColourProfileIndex = (int) colourProfiles.size() - 1;
 
             repaint();
+            return;
+        }
+
+        if (minusPill.contains (mouse))
+        {
+            moveSelectedProfileAngle (-15.0f);
+            return;
+        }
+
+        if (plusPill.contains (mouse))
+        {
+            moveSelectedProfileAngle (15.0f);
             return;
         }
 
@@ -467,13 +498,22 @@ void MainComponent::drawColourProfileBar (juce::Graphics& g, juce::Rectangle<flo
 
     const auto addX = area.getX() + (pillWidth + gap) * (float) colourProfiles.size();
     const auto addPill = juce::Rectangle<float> (addX, area.getY(), 96.0f, pillHeight);
+    const auto minusPill = juce::Rectangle<float> (addPill.getRight() + gap, area.getY(), 58.0f, pillHeight);
+    const auto plusPill = juce::Rectangle<float> (minusPill.getRight() + gap, area.getY(), 58.0f, pillHeight);
 
-    g.setColour (juce::Colours::white.withAlpha (0.07f));
-    g.fillRoundedRectangle (addPill, 6.0f);
+    auto drawSmallButton = [&] (juce::Rectangle<float> button, const juce::String& text)
+    {
+        g.setColour (juce::Colours::white.withAlpha (0.07f));
+        g.fillRoundedRectangle (button, 6.0f);
 
-    g.setColour (juce::Colours::white.withAlpha (0.35f));
-    g.drawRoundedRectangle (addPill, 6.0f, 1.0f);
-    g.drawText ("+ duplicate", addPill.reduced (8.0f, 0.0f), juce::Justification::centredLeft);
+        g.setColour (juce::Colours::white.withAlpha (0.35f));
+        g.drawRoundedRectangle (button, 6.0f, 1.0f);
+        g.drawText (text, button.reduced (7.0f, 0.0f), juce::Justification::centredLeft);
+    };
+
+    drawSmallButton (addPill, "+ duplicate");
+    drawSmallButton (minusPill, "-15deg");
+    drawSmallButton (plusPill, "+15deg");
 }
 
 void MainComponent::drawColourPalette (juce::Graphics& g, juce::Rectangle<float> area)
