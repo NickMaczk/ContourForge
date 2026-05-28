@@ -64,6 +64,8 @@ private:
     SampledProfilePoint sampleProfileAt (float x, int colourProfileIndex) const;
     juce::Colour getPointColour (int pointIndex) const;
     void setPointColour (int pointIndex, juce::Colour colour);
+    juce::Colour getAutoShadedPointColour (int pointIndex, int colourProfileIndex) const;
+    void bakeAutoShadeIntoSelectedProfile();
 
     std::vector<juce::Colour> getPaletteColours() const;
 
