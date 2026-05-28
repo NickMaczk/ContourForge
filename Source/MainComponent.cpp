@@ -743,8 +743,30 @@ void MainComponent::drawPreview (juce::Graphics& g, juce::Rectangle<float> area)
 
     g.setColour (juce::Colours::white.withAlpha (0.55f));
     g.setFont (juce::FontOptions (14.0f, juce::Font::bold));
-    g.drawText ("Shape preview", titleRow.removeFromLeft (280.0f),
+    g.drawText ("Shape preview", titleRow.removeFromLeft (180.0f),
                 juce::Justification::left);
+
+    juce::String modeText = "Height";
+
+    if (previewMode == PreviewMode::normalMap)
+        modeText = "Normal";
+    else if (previewMode == PreviewMode::material)
+        modeText = "Beauty";
+    else if (previewMode == PreviewMode::cavity)
+        modeText = "Cavity";
+    else if (previewMode == PreviewMode::ambientOcclusion)
+        modeText = "AO";
+
+    const auto infoText =
+        modeText
+        + "   Light " + juce::String (juce::roundToInt (lightAngleDeg)) + juce::String::fromUTF8 ("\xC2\xB0")
+        + "   Elev " + juce::String (juce::roundToInt (lightElevation * 100.0f)) + "%"
+        + "   Gloss " + juce::String (juce::roundToInt (glossAmount * 100.0f)) + "%"
+        + "   Drag /" + juce::String (previewQualityDivisor);
+
+    g.setColour (juce::Colours::white.withAlpha (0.28f));
+    g.setFont (juce::FontOptions (11.0f));
+    g.drawText (infoText, titleRow, juce::Justification::centredRight);
 
     auto previewControls = area.reduced (18.0f).removeFromTop (88.0f).removeFromRight (420.0f);
 
