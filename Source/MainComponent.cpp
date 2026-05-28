@@ -243,7 +243,21 @@ void MainComponent::drawPreview (juce::Graphics& g, juce::Rectangle<float> area)
         band.addRoundedRectangle (outer, getCornerRadius (a));
         band.addRoundedRectangle (inner, getCornerRadius (b));
 
-        g.setColour (a.colour.interpolatedWith (b.colour, 0.5f));
+        auto colour = a.colour.interpolatedWith (b.colour, 0.5f);
+
+        const auto midHeight = (a.y + b.y) * 0.5f;
+        const auto slope = b.y - a.y;
+
+        const auto heightTint = (midHeight - 0.5f) * 0.18f;
+        const auto slopeTint = slope * 0.32f;
+        const auto tint = juce::jlimit (-0.35f, 0.35f, heightTint + slopeTint);
+
+        if (tint >= 0.0f)
+            colour = colour.interpolatedWith (juce::Colours::white, tint);
+        else
+            colour = colour.interpolatedWith (juce::Colours::black, -tint);
+
+        g.setColour (colour);
         g.fillPath (band);
     }
 
