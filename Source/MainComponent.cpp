@@ -63,14 +63,18 @@ void MainComponent::mouseDown (const juce::MouseEvent& e)
         constexpr float pillHeight = 24.0f;
         constexpr float gap = 8.0f;
 
-        const auto previousPill = juce::Rectangle<float> (bar.getX(), bar.getY(), 32.0f, pillHeight);
-        const auto profilePill = juce::Rectangle<float> (previousPill.getRight() + gap, bar.getY(), 104.0f, pillHeight);
-        const auto nextPill = juce::Rectangle<float> (profilePill.getRight() + gap, bar.getY(), 32.0f, pillHeight);
+        auto selectorRow = bar.removeFromTop (pillHeight);
+        bar.removeFromTop (gap);
+        auto actionRow = bar.removeFromTop (pillHeight);
 
-        const auto duplicatePill = juce::Rectangle<float> (nextPill.getRight() + gap * 2.0f, bar.getY(), 46.0f, pillHeight);
-        const auto deletePill = juce::Rectangle<float> (duplicatePill.getRight() + gap, bar.getY(), 46.0f, pillHeight);
-        const auto minusPill = juce::Rectangle<float> (deletePill.getRight() + gap, bar.getY(), 58.0f, pillHeight);
-        const auto plusPill = juce::Rectangle<float> (minusPill.getRight() + gap, bar.getY(), 58.0f, pillHeight);
+        const auto previousPill = juce::Rectangle<float> (selectorRow.getX(), selectorRow.getY(), 32.0f, pillHeight);
+        const auto profilePill = juce::Rectangle<float> (previousPill.getRight() + gap, selectorRow.getY(), 126.0f, pillHeight);
+        const auto nextPill = juce::Rectangle<float> (profilePill.getRight() + gap, selectorRow.getY(), 32.0f, pillHeight);
+
+        const auto duplicatePill = juce::Rectangle<float> (actionRow.getX(), actionRow.getY(), 46.0f, pillHeight);
+        const auto deletePill = juce::Rectangle<float> (duplicatePill.getRight() + gap, actionRow.getY(), 46.0f, pillHeight);
+        const auto minusPill = juce::Rectangle<float> (deletePill.getRight() + gap, actionRow.getY(), 58.0f, pillHeight);
+        const auto plusPill = juce::Rectangle<float> (minusPill.getRight() + gap, actionRow.getY(), 58.0f, pillHeight);
 
         auto selectRelativeProfile = [&] (int delta)
         {
@@ -241,7 +245,7 @@ void MainComponent::mouseDoubleClick (const juce::MouseEvent& e)
             return;
 
     auto graph = area;
-    graph.removeFromBottom (112.0f);
+    graph.removeFromBottom (144.0f);
     graph = graph.reduced (28.0f);
 
     if (! graph.contains (e.position))
@@ -304,20 +308,20 @@ juce::Rectangle<float> MainComponent::getPreviewArea() const
 juce::Rectangle<float> MainComponent::getColourProfileBarArea() const
 {
     auto area = getProfileArea();
-    area.removeFromBottom (66.0f);
-    return area.removeFromBottom (32.0f).reduced (18.0f, 4.0f);
+    area.removeFromBottom (64.0f);
+    return area.removeFromBottom (64.0f).reduced (18.0f, 4.0f);
 }
 
 juce::Rectangle<float> MainComponent::getColourPaletteArea() const
 {
     auto area = getProfileArea();
-    return area.removeFromBottom (56.0f).reduced (18.0f, 8.0f);
+    return area.removeFromBottom (64.0f).reduced (18.0f, 8.0f);
 }
 
 juce::Point<float> MainComponent::profileToScreen (const ProfilePoint& p, juce::Rectangle<float> area) const
 {
     auto graph = area;
-    graph.removeFromBottom (112.0f);
+    graph.removeFromBottom (144.0f);
     graph = graph.reduced (28.0f);
 
     return
@@ -332,7 +336,7 @@ MainComponent::ProfilePoint MainComponent::screenToProfile (juce::Point<float> p
                                                             int pointIndex) const
 {
     auto graph = area;
-    graph.removeFromBottom (112.0f);
+    graph.removeFromBottom (144.0f);
     graph = graph.reduced (28.0f);
 
     auto x = (p.x - graph.getX()) / graph.getWidth();
@@ -445,7 +449,7 @@ void MainComponent::drawProfileEditor (juce::Graphics& g, juce::Rectangle<float>
     g.drawRoundedRectangle (area, 14.0f, 1.0f);
 
     auto graph = area;
-    graph.removeFromBottom (112.0f);
+    graph.removeFromBottom (144.0f);
     graph = graph.reduced (28.0f);
 
     g.setColour (juce::Colours::white.withAlpha (0.08f));
@@ -497,14 +501,18 @@ void MainComponent::drawColourProfileBar (juce::Graphics& g, juce::Rectangle<flo
     constexpr float pillHeight = 24.0f;
     constexpr float gap = 8.0f;
 
-    const auto previousPill = juce::Rectangle<float> (area.getX(), area.getY(), 32.0f, pillHeight);
-    const auto profilePill = juce::Rectangle<float> (previousPill.getRight() + gap, area.getY(), 104.0f, pillHeight);
-    const auto nextPill = juce::Rectangle<float> (profilePill.getRight() + gap, area.getY(), 32.0f, pillHeight);
+    auto selectorRow = area.removeFromTop (pillHeight);
+    area.removeFromTop (gap);
+    auto actionRow = area.removeFromTop (pillHeight);
 
-    const auto duplicatePill = juce::Rectangle<float> (nextPill.getRight() + gap * 2.0f, area.getY(), 46.0f, pillHeight);
-    const auto deletePill = juce::Rectangle<float> (duplicatePill.getRight() + gap, area.getY(), 46.0f, pillHeight);
-    const auto minusPill = juce::Rectangle<float> (deletePill.getRight() + gap, area.getY(), 58.0f, pillHeight);
-    const auto plusPill = juce::Rectangle<float> (minusPill.getRight() + gap, area.getY(), 58.0f, pillHeight);
+    const auto previousPill = juce::Rectangle<float> (selectorRow.getX(), selectorRow.getY(), 32.0f, pillHeight);
+    const auto profilePill = juce::Rectangle<float> (previousPill.getRight() + gap, selectorRow.getY(), 126.0f, pillHeight);
+    const auto nextPill = juce::Rectangle<float> (profilePill.getRight() + gap, selectorRow.getY(), 32.0f, pillHeight);
+
+    const auto duplicatePill = juce::Rectangle<float> (actionRow.getX(), actionRow.getY(), 46.0f, pillHeight);
+    const auto deletePill = juce::Rectangle<float> (duplicatePill.getRight() + gap, actionRow.getY(), 46.0f, pillHeight);
+    const auto minusPill = juce::Rectangle<float> (deletePill.getRight() + gap, actionRow.getY(), 58.0f, pillHeight);
+    const auto plusPill = juce::Rectangle<float> (minusPill.getRight() + gap, actionRow.getY(), 58.0f, pillHeight);
 
     auto drawButton = [&] (juce::Rectangle<float> button, const juce::String& text, bool enabled = true, bool selected = false)
     {
