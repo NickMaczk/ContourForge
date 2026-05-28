@@ -743,7 +743,7 @@ void MainComponent::drawPreview (juce::Graphics& g, juce::Rectangle<float> area)
 
     g.setColour (juce::Colours::white.withAlpha (0.55f));
     g.setFont (juce::FontOptions (14.0f, juce::Font::bold));
-    g.drawText ("Shape preview", titleRow.removeFromLeft (180.0f),
+    g.drawText ("Shape preview", titleRow.removeFromLeft (280.0f),
                 juce::Justification::left);
 
     juce::String modeText = "Height";
@@ -759,14 +759,17 @@ void MainComponent::drawPreview (juce::Graphics& g, juce::Rectangle<float> area)
 
     const auto infoText =
         modeText
-        + "   Light " + juce::String (juce::roundToInt (lightAngleDeg)) + juce::String::fromUTF8 ("\xC2\xB0")
-        + "   Elev " + juce::String (juce::roundToInt (lightElevation * 100.0f)) + "%"
-        + "   Gloss " + juce::String (juce::roundToInt (glossAmount * 100.0f)) + "%"
-        + "   Drag /" + juce::String (previewQualityDivisor);
+        + " | Light " + juce::String (juce::roundToInt (lightAngleDeg)) + juce::String::fromUTF8 ("\xC2\xB0")
+        + " | Elev " + juce::String (juce::roundToInt (lightElevation * 100.0f)) + "%"
+        + " | Gloss " + juce::String (juce::roundToInt (glossAmount * 100.0f)) + "%"
+        + " | Drag /" + juce::String (previewQualityDivisor);
 
-    g.setColour (juce::Colours::white.withAlpha (0.28f));
+    auto infoRow = area.reduced (18.0f).removeFromTop (54.0f).removeFromBottom (18.0f);
+    infoRow.removeFromRight (440.0f);
+
+    g.setColour (juce::Colours::white.withAlpha (0.26f));
     g.setFont (juce::FontOptions (11.0f));
-    g.drawText (infoText, titleRow, juce::Justification::centredRight);
+    g.drawText (infoText, infoRow, juce::Justification::left);
 
     auto previewControls = area.reduced (18.0f).removeFromTop (88.0f).removeFromRight (420.0f);
 
