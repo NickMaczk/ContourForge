@@ -193,12 +193,10 @@ void MainComponent::drawPreview (juce::Graphics& g, juce::Rectangle<float> area)
 
     auto getContour = [&] (const ProfilePoint& p)
     {
-        auto r = shapeArea.reduced (p.x * maxInset);
-
+        const auto baseInset = p.x * maxInset;
         const auto depth = (p.y - 0.5f) * depthAmount;
-        r.translate (-depth * 0.55f, -depth);
 
-        return r;
+        return shapeArea.reduced (baseInset - depth);
     };
 
     auto getCornerRadius = [] (const ProfilePoint& p)
