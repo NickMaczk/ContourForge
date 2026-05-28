@@ -47,6 +47,7 @@ private:
 
     PreviewShape previewShape = PreviewShape::circle;
     bool autoShadeEnabled = true;
+    juce::String statusText;
 
     int selectedColourProfileIndex = 0;
     int draggedColourProfileIndex = -1;
@@ -57,6 +58,8 @@ private:
     juce::Rectangle<float> getPreviewArea() const;
     juce::Rectangle<float> getColourProfileBarArea() const;
     juce::Rectangle<float> getColourPaletteArea() const;
+    juce::Rectangle<float> getSaveButtonArea() const;
+    juce::Rectangle<float> getLoadButtonArea() const;
 
     juce::Point<float> profileToScreen (const ProfilePoint&, juce::Rectangle<float>) const;
     ProfilePoint screenToProfile (juce::Point<float>, juce::Rectangle<float>, int pointIndex) const;

@@ -43,6 +43,29 @@ void MainComponent::paint (juce::Graphics& g)
     g.drawText ("Drag points. Double-click to add. Right-click to remove. Duplicate colour profiles below.",
                 24, 46, 720, 22, juce::Justification::left);
 
+    auto drawTopButton = [&] (juce::Rectangle<float> button, const juce::String& text)
+    {
+        g.setColour (juce::Colours::white.withAlpha (0.08f));
+        g.fillRoundedRectangle (button, 6.0f);
+
+        g.setColour (juce::Colours::white.withAlpha (0.38f));
+        g.drawRoundedRectangle (button, 6.0f, 1.0f);
+
+        g.setColour (juce::Colours::white.withAlpha (0.68f));
+        g.setFont (juce::FontOptions (12.0f, juce::Font::bold));
+        g.drawText (text, button, juce::Justification::centred);
+    };
+
+    drawTopButton (getSaveButtonArea(), "Save");
+    drawTopButton (getLoadButtonArea(), "Load");
+
+    if (statusText.isNotEmpty())
+    {
+        g.setColour (juce::Colours::white.withAlpha (0.38f));
+        g.setFont (juce::FontOptions (12.0f));
+        g.drawText (statusText, 420, 22, 360, 24, juce::Justification::centredRight);
+    }
+
     drawProfileEditor (g, getProfileArea());
     drawPreview (g, getPreviewArea());
 }
@@ -51,10 +74,36 @@ void MainComponent::resized()
 {
 }
 
+juce::Rectangle<float> MainComponent::getSaveButtonArea() const
+{
+    auto r = getLocalBounds().toFloat().reduced (24.0f);
+    return { r.getRight() - 172.0f, 20.0f, 78.0f, 28.0f };
+}
+
+juce::Rectangle<float> MainComponent::getLoadButtonArea() const
+{
+    auto r = getLocalBounds().toFloat().reduced (24.0f);
+    return { r.getRight() - 86.0f, 20.0f, 78.0f, 28.0f };
+}
+
 void MainComponent::mouseDown (const juce::MouseEvent& e)
 {
     const auto area = getProfileArea();
     const auto mouse = e.position;
+
+    if (getSaveButtonArea().contains (mouse))
+    {
+        statusText = "Save clicked";
+        repaint();
+        return;
+    }
+
+    if (getLoadButtonArea().contains (mouse))
+    {
+        statusText = "Load clicked";
+        repaint();
+        return;
+    }
 
     {
         auto previewArea = getPreviewArea();
