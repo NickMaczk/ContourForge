@@ -32,6 +32,8 @@ private:
     juce::Point<float> profileToScreen (const ProfilePoint&, juce::Rectangle<float>) const;
     ProfilePoint screenToProfile (juce::Point<float>, juce::Rectangle<float>, int pointIndex) const;
 
+    ProfilePoint sampleProfileAt (float x) const;
+
     void drawProfileEditor (juce::Graphics&, juce::Rectangle<float>);
     void drawPreview (juce::Graphics&, juce::Rectangle<float>);
 

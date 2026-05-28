@@ -124,6 +124,31 @@ MainComponent::ProfilePoint MainComponent::screenToProfile (juce::Point<float> p
     return result;
 }
 
+MainComponent::ProfilePoint MainComponent::sampleProfileAt (float x) const
+{
+    x = juce::jlimit (0.0f, 1.0f, x);
+
+    for (int i = 0; i < (int) profilePoints.size() - 1; ++i)
+    {
+        const auto& a = profilePoints[(size_t) i];
+        const auto& b = profilePoints[(size_t) i + 1];
+
+        if (x >= a.x && x <= b.x)
+        {
+            const auto amount = (x - a.x) / juce::jmax (0.0001f, b.x - a.x);
+
+            return
+            {
+                x,
+                juce::jmap (amount, a.y, b.y),
+                a.colour.interpolatedWith (b.colour, amount)
+            };
+        }
+    }
+
+    return profilePoints.back();
+}
+
 void MainComponent::drawProfileEditor (juce::Graphics& g, juce::Rectangle<float> area)
 {
     g.setColour (juce::Colour::fromRGB (22, 22, 26));
@@ -200,10 +225,15 @@ void MainComponent::drawPreview (juce::Graphics& g, juce::Rectangle<float> area)
         return juce::jlimit (8.0f, 72.0f, 72.0f - p.x * 42.0f);
     };
 
-    for (int i = 0; i < (int) profilePoints.size() - 1; ++i)
+    constexpr int numBands = 64;
+
+    for (int i = 0; i < numBands; ++i)
     {
-        const auto& a = profilePoints[(size_t) i];
-        const auto& b = profilePoints[(size_t) i + 1];
+        const auto x0 = (float) i / (float) numBands;
+        const auto x1 = (float) (i + 1) / (float) numBands;
+
+        const auto a = sampleProfileAt (x0);
+        const auto b = sampleProfileAt (x1);
 
         const auto outer = getContour (a);
         const auto inner = getContour (b);
@@ -215,9 +245,6 @@ void MainComponent::drawPreview (juce::Graphics& g, juce::Rectangle<float> area)
 
         g.setColour (a.colour.interpolatedWith (b.colour, 0.5f));
         g.fillPath (band);
-
-        g.setColour (juce::Colours::black.withAlpha (0.18f));
-        g.strokePath (band, juce::PathStrokeType (1.0f));
     }
 
     const auto inner = getContour (profilePoints.back());
