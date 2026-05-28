@@ -120,7 +120,10 @@ MainComponent::ProfilePoint MainComponent::screenToProfile (juce::Point<float> p
 
     ProfilePoint result = profilePoints[(size_t) pointIndex];
     result.x = juce::jlimit (0.0f, 1.0f, x);
-    result.y = juce::jlimit (0.0f, 1.0f, y);
+
+    if (! isFirst && ! isLast)
+        result.y = juce::jlimit (0.0f, 1.0f, y);
+
     return result;
 }
 
@@ -191,10 +194,11 @@ void MainComponent::drawPreview (juce::Graphics& g, juce::Rectangle<float> area)
     const auto maxInset = juce::jmin (shapeArea.getWidth(), shapeArea.getHeight()) * 0.46f;
     const auto depthAmount = 42.0f;
 
-    auto getContour = [&] (const ProfilePoint& p)
+    auto getContour = [&] (const ProfilePoint& p, int pointIndex)
     {
         const auto baseInset = p.x * maxInset;
-        const auto depth = (p.y - 0.5f) * depthAmount;
+        const auto isAnchor = pointIndex == 0 || pointIndex == (int) profilePoints.size() - 1;
+        const auto depth = isAnchor ? 0.0f : (p.y - 0.5f) * depthAmount;
 
         return shapeArea.reduced (baseInset - depth);
     };
@@ -209,8 +213,8 @@ void MainComponent::drawPreview (juce::Graphics& g, juce::Rectangle<float> area)
         const auto& a = profilePoints[(size_t) i];
         const auto& b = profilePoints[(size_t) i + 1];
 
-        const auto outer = getContour (a);
-        const auto inner = getContour (b);
+        const auto outer = getContour (a, i);
+        const auto inner = getContour (b, i + 1);
 
         juce::Path band;
         band.setUsingNonZeroWinding (false);
@@ -224,11 +228,11 @@ void MainComponent::drawPreview (juce::Graphics& g, juce::Rectangle<float> area)
         g.strokePath (band, juce::PathStrokeType (1.0f));
     }
 
-    const auto inner = getContour (profilePoints.back());
+    const auto inner = getContour (profilePoints.back(), (int) profilePoints.size() - 1);
 
     g.setColour (profilePoints.back().colour);
     g.fillRoundedRectangle (inner, getCornerRadius (profilePoints.back()));
 
     g.setColour (juce::Colours::white.withAlpha (0.12f));
-    g.drawRoundedRectangle (getContour (profilePoints.front()), getCornerRadius (profilePoints.front()), 1.0f);
+    g.drawRoundedRectangle (getContour (profilePoints.front(), 0), getCornerRadius (profilePoints.front()), 1.0f);
 }
