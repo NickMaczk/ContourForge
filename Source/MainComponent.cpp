@@ -897,11 +897,17 @@ void MainComponent::drawPreview (juce::Graphics& g, juce::Rectangle<float> area)
             const auto midAngle = (angle0 + angle1) * 0.5f;
             const auto midX = (x0 + x1) * 0.5f;
 
+            constexpr float bandOverlap = 0.0015f;
+            constexpr float angleOverlapDeg = 0.35f;
+
+            const auto ox0 = juce::jlimit (0.0f, 1.0f, x0 - bandOverlap);
+            const auto ox1 = juce::jlimit (0.0f, 1.0f, x1 + bandOverlap);
+
             juce::Path wedge;
-            wedge.startNewSubPath (shapePointAt (x0, angle0));
-            wedge.lineTo (shapePointAt (x0, angle1));
-            wedge.lineTo (shapePointAt (x1, angle1));
-            wedge.lineTo (shapePointAt (x1, angle0));
+            wedge.startNewSubPath (shapePointAt (ox0, angle0 - angleOverlapDeg));
+            wedge.lineTo (shapePointAt (ox0, angle1 + angleOverlapDeg));
+            wedge.lineTo (shapePointAt (ox1, angle1 + angleOverlapDeg));
+            wedge.lineTo (shapePointAt (ox1, angle0 - angleOverlapDeg));
             wedge.closeSubPath();
 
             auto colour = colourAt (midX, midAngle);
