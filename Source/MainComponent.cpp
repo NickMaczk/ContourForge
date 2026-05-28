@@ -521,65 +521,134 @@ void MainComponent::drawPreview (juce::Graphics& g, juce::Rectangle<float> area)
 
     g.setColour (juce::Colours::white.withAlpha (0.55f));
     g.setFont (juce::FontOptions (14.0f, juce::Font::bold));
-    g.drawText ("Pseudo-3D preview", area.reduced (18.0f).removeFromTop (24.0f),
+    g.drawText ("Circular colour-profile preview", area.reduced (18.0f).removeFromTop (24.0f),
                 juce::Justification::left);
 
-    auto shapeArea = area.reduced (70.0f, 82.0f);
-    auto getContour = [&] (const auto& p)
-    {
-        const auto scale = 1.0f - p.x;
+    auto shapeArea = area.reduced (84.0f, 92.0f);
+    const auto centre = shapeArea.getCentre();
+    const auto outerRadius = juce::jmin (shapeArea.getWidth(), shapeArea.getHeight()) * 0.5f;
 
-        return shapeArea.withSizeKeepingCentre (
-            juce::jmax (1.0f, shapeArea.getWidth() * scale),
-            juce::jmax (1.0f, shapeArea.getHeight() * scale));
+    auto normaliseAngle = [] (float angle)
+    {
+        while (angle < 0.0f)
+            angle += 360.0f;
+
+        while (angle >= 360.0f)
+            angle -= 360.0f;
+
+        return angle;
     };
 
-    auto getCornerRadius = [] (const auto& p)
+    auto forwardAngleDistance = [&] (float from, float to)
     {
-        return juce::jlimit (8.0f, 72.0f, 72.0f - p.x * 42.0f);
+        return normaliseAngle (to - from);
+    };
+
+    auto colourAt = [&] (float x, float angleDeg)
+    {
+        if (colourProfiles.empty())
+            return juce::Colours::white;
+
+        if (colourProfiles.size() == 1)
+            return sampleProfileAt (x, 0).colour;
+
+        angleDeg = normaliseAngle (angleDeg);
+
+        int previousIndex = 0;
+        int nextIndex = 0;
+
+        auto bestPreviousDistance = 360.0f;
+        auto bestNextDistance = 360.0f;
+
+        for (int i = 0; i < (int) colourProfiles.size(); ++i)
+        {
+            const auto profileAngle = normaliseAngle (colourProfiles[(size_t) i].angleDeg);
+
+            const auto previousDistance = forwardAngleDistance (profileAngle, angleDeg);
+            const auto nextDistance = forwardAngleDistance (angleDeg, profileAngle);
+
+            if (previousDistance < bestPreviousDistance)
+            {
+                bestPreviousDistance = previousDistance;
+                previousIndex = i;
+            }
+
+            if (nextDistance < bestNextDistance)
+            {
+                bestNextDistance = nextDistance;
+                nextIndex = i;
+            }
+        }
+
+        if (previousIndex == nextIndex)
+            return sampleProfileAt (x, previousIndex).colour;
+
+        const auto totalDistance = bestPreviousDistance + bestNextDistance;
+        const auto amount = totalDistance <= 0.0001f ? 0.0f : bestPreviousDistance / totalDistance;
+
+        return sampleProfileAt (x, previousIndex).colour
+            .interpolatedWith (sampleProfileAt (x, nextIndex).colour, amount);
+    };
+
+    auto pointAt = [&] (float radius, float angleDeg)
+    {
+        const auto radians = (angleDeg - 90.0f) * juce::MathConstants<float>::pi / 180.0f;
+
+        return juce::Point<float>
+        {
+            centre.x + std::cos (radians) * radius,
+            centre.y + std::sin (radians) * radius
+        };
     };
 
     constexpr int numBands = 64;
+    constexpr int numAngles = 96;
 
-    for (int i = 0; i < numBands; ++i)
+    for (int bandIndex = 0; bandIndex < numBands; ++bandIndex)
     {
-        const auto x0 = (float) i / (float) numBands;
-        const auto x1 = (float) (i + 1) / (float) numBands;
+        const auto x0 = (float) bandIndex / (float) numBands;
+        const auto x1 = (float) (bandIndex + 1) / (float) numBands;
 
         const auto a = sampleProfileAt (x0, selectedColourProfileIndex);
         const auto b = sampleProfileAt (x1, selectedColourProfileIndex);
 
-        const auto outer = getContour (a);
-        const auto inner = getContour (b);
+        const auto radius0 = outerRadius * (1.0f - x0);
+        const auto radius1 = outerRadius * (1.0f - x1);
 
-        juce::Path band;
-        band.setUsingNonZeroWinding (false);
-        band.addRoundedRectangle (outer, getCornerRadius (a));
-        band.addRoundedRectangle (inner, getCornerRadius (b));
+        for (int angleIndex = 0; angleIndex < numAngles; ++angleIndex)
+        {
+            const auto angle0 = 360.0f * (float) angleIndex / (float) numAngles;
+            const auto angle1 = 360.0f * (float) (angleIndex + 1) / (float) numAngles;
+            const auto midAngle = (angle0 + angle1) * 0.5f;
+            const auto midX = (x0 + x1) * 0.5f;
 
-        auto colour = a.colour.interpolatedWith (b.colour, 0.5f);
+            juce::Path wedge;
+            wedge.startNewSubPath (pointAt (radius0, angle0));
+            wedge.lineTo (pointAt (radius0, angle1));
+            wedge.lineTo (pointAt (radius1, angle1));
+            wedge.lineTo (pointAt (radius1, angle0));
+            wedge.closeSubPath();
 
-        const auto midHeight = (a.y + b.y) * 0.5f;
-        const auto slope = b.y - a.y;
+            auto colour = colourAt (midX, midAngle);
 
-        const auto heightTint = (midHeight - 0.5f) * 0.18f;
-        const auto slopeTint = slope * 0.32f;
-        const auto tint = juce::jlimit (-0.35f, 0.35f, heightTint + slopeTint);
+            const auto midHeight = (a.y + b.y) * 0.5f;
+            const auto slope = b.y - a.y;
 
-        if (tint >= 0.0f)
-            colour = colour.interpolatedWith (juce::Colours::white, tint);
-        else
-            colour = colour.interpolatedWith (juce::Colours::black, -tint);
+            const auto heightTint = (midHeight - 0.5f) * 0.18f;
+            const auto slopeTint = slope * 0.32f;
+            const auto tint = juce::jlimit (-0.35f, 0.35f, heightTint + slopeTint);
 
-        g.setColour (colour);
-        g.fillPath (band);
+            if (tint >= 0.0f)
+                colour = colour.interpolatedWith (juce::Colours::white, tint);
+            else
+                colour = colour.interpolatedWith (juce::Colours::black, -tint);
+
+            g.setColour (colour);
+            g.fillPath (wedge);
+        }
     }
 
-    const auto inner = getContour (profilePoints.back());
-
-    g.setColour (getPointColour ((int) profilePoints.size() - 1));
-    g.fillRoundedRectangle (inner, getCornerRadius (profilePoints.back()));
-
     g.setColour (juce::Colours::white.withAlpha (0.12f));
-    g.drawRoundedRectangle (getContour (profilePoints.front()), getCornerRadius (profilePoints.front()), 1.0f);
+    g.drawEllipse (shapeArea, 1.0f);
 }
+
