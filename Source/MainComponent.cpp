@@ -690,5 +690,25 @@ void MainComponent::drawPreview (juce::Graphics& g, juce::Rectangle<float> area)
 
     g.setColour (juce::Colours::white.withAlpha (0.12f));
     g.drawEllipse (shapeArea, 1.0f);
+
+    g.setFont (juce::FontOptions (12.0f, juce::Font::bold));
+
+    for (int i = 0; i < (int) colourProfiles.size(); ++i)
+    {
+        const auto angle = colourProfiles[(size_t) i].angleDeg;
+        const auto marker = pointAt (outerRadius + 18.0f, angle);
+        const auto colour = sampleProfileAt (0.18f, i).colour;
+        const auto isSelected = i == selectedColourProfileIndex;
+
+        g.setColour (colour);
+        g.fillEllipse (marker.x - 7.0f, marker.y - 7.0f, 14.0f, 14.0f);
+
+        g.setColour (juce::Colours::white.withAlpha (isSelected ? 0.95f : 0.45f));
+        g.drawEllipse (marker.x - 7.0f, marker.y - 7.0f, 14.0f, 14.0f, isSelected ? 2.0f : 1.0f);
+
+        g.drawText ("P" + juce::String (i + 1),
+                    juce::Rectangle<float> (marker.x - 14.0f, marker.y - 26.0f, 28.0f, 16.0f),
+                    juce::Justification::centred);
+    }
 }
 
