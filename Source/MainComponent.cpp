@@ -260,7 +260,9 @@ void MainComponent::mouseDown (const juce::MouseEvent& e)
 
         if (rangeMinusButton.contains (mouse))
         {
-            if (previewMode == PreviewMode::cavity)
+            if (previewMode == PreviewMode::material)
+                lightAngleDeg -= 15.0f;
+            else if (previewMode == PreviewMode::cavity)
                 cavityPropagation = juce::jlimit (0.04f, 0.80f, cavityPropagation - 0.04f);
             else
             {
@@ -268,19 +270,27 @@ void MainComponent::mouseDown (const juce::MouseEvent& e)
                 previewMode = PreviewMode::ambientOcclusion;
             }
 
+            while (lightAngleDeg < 0.0f)
+                lightAngleDeg += 360.0f;
+
             repaint();
             return;
         }
 
         if (rangePlusButton.contains (mouse))
         {
-            if (previewMode == PreviewMode::cavity)
+            if (previewMode == PreviewMode::material)
+                lightAngleDeg += 15.0f;
+            else if (previewMode == PreviewMode::cavity)
                 cavityPropagation = juce::jlimit (0.04f, 0.80f, cavityPropagation + 0.04f);
             else
             {
                 ambientOcclusionPropagation = juce::jlimit (0.04f, 0.80f, ambientOcclusionPropagation + 0.04f);
                 previewMode = PreviewMode::ambientOcclusion;
             }
+
+            while (lightAngleDeg >= 360.0f)
+                lightAngleDeg -= 360.0f;
 
             repaint();
             return;
@@ -480,6 +490,7 @@ juce::var MainComponent::createProjectState() const
     root->setProperty ("cavityPropagation", cavityPropagation);
     root->setProperty ("ambientOcclusionPropagation", ambientOcclusionPropagation);
     root->setProperty ("baseColour", baseColour.toDisplayString (true));
+    root->setProperty ("lightAngleDeg", lightAngleDeg);
     root->setProperty ("previewQualityDivisor", previewQualityDivisor);
 
     juce::Array<juce::var> points;
@@ -557,6 +568,17 @@ bool MainComponent::applyProjectState (const juce::var& state)
 
     if (! loadedBaseColour.isVoid())
         baseColour = juce::Colour::fromString (loadedBaseColour.toString());
+
+    const auto loadedLightAngleDeg = root->getProperty ("lightAngleDeg");
+
+    if (! loadedLightAngleDeg.isVoid())
+        lightAngleDeg = (float) (double) loadedLightAngleDeg;
+
+    while (lightAngleDeg < 0.0f)
+        lightAngleDeg += 360.0f;
+
+    while (lightAngleDeg >= 360.0f)
+        lightAngleDeg -= 360.0f;
 
     const auto loadedPreviewQualityDivisor = (int) root->getProperty ("previewQualityDivisor");
 
@@ -722,8 +744,12 @@ void MainComponent::drawPreview (juce::Graphics& g, juce::Rectangle<float> area)
     drawShapeButton (materialButton, "Beauty", previewMode == PreviewMode::material);
     drawShapeButton (cavityButton, "Cavity", previewMode == PreviewMode::cavity);
     drawShapeButton (aoButton, "AO", previewMode == PreviewMode::ambientOcclusion);
-    drawShapeButton (rangeMinusButton, "Range-", false);
-    drawShapeButton (rangePlusButton, "Range+", false);
+
+    const auto leftAdjustText = previewMode == PreviewMode::material ? "Light-" : "Range-";
+    const auto rightAdjustText = previewMode == PreviewMode::material ? "Light+" : "Range+";
+
+    drawShapeButton (rangeMinusButton, leftAdjustText, false);
+    drawShapeButton (rangePlusButton, rightAdjustText, false);
 
     auto shapeArea = area.reduced (84.0f, 92.0f);
     const auto side = juce::jmin (shapeArea.getWidth(), shapeArea.getHeight());
@@ -980,8 +1006,10 @@ void MainComponent::drawPreview (juce::Graphics& g, juce::Rectangle<float> area)
 
         normalAtPixel (pixelX, pixelY, currentHeight, nx, ny, nz);
 
-        constexpr float lx = -0.38f;
-        constexpr float ly = -0.58f;
+        const auto lightRadians = (lightAngleDeg - 90.0f) * juce::MathConstants<float>::pi / 180.0f;
+
+        const auto lx = std::cos (lightRadians) * 0.64f;
+        const auto ly = std::sin (lightRadians) * 0.64f;
         constexpr float lz = 0.72f;
 
         const auto lightLength = std::sqrt (lx * lx + ly * ly + lz * lz);

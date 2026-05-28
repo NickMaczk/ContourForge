@@ -51,6 +51,7 @@ private:
     float cavityPropagation = 0.22f;
     float ambientOcclusionPropagation = 0.18f;
     juce::Colour baseColour = juce::Colour::fromRGB (170, 146, 105);
+    float lightAngleDeg = 225.0f;
     int previewQualityDivisor = 2;
 
     juce::String statusText;
