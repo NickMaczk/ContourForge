@@ -141,7 +141,7 @@ void MainComponent::mouseDown (const juce::MouseEvent& e)
     }
 
     {
-        auto previewControls = getPreviewArea().reduced (18.0f).removeFromTop (56.0f).removeFromRight (420.0f);
+        auto previewControls = getPreviewArea().reduced (18.0f).removeFromTop (56.0f).removeFromRight (440.0f);
 
         auto shapeRow = previewControls.removeFromTop (24.0f);
         previewControls.removeFromTop (8.0f);
@@ -151,17 +151,19 @@ void MainComponent::mouseDown (const juce::MouseEvent& e)
         shapeRow.removeFromLeft (8.0f);
         const auto squareButton = shapeRow.removeFromLeft (80.0f);
 
-        const auto heightButton = modeRow.removeFromLeft (72.0f);
-        modeRow.removeFromLeft (8.0f);
-        const auto normalButton = modeRow.removeFromLeft (72.0f);
-        modeRow.removeFromLeft (8.0f);
-        const auto cavityButton = modeRow.removeFromLeft (68.0f);
-        modeRow.removeFromLeft (8.0f);
-        const auto aoButton = modeRow.removeFromLeft (48.0f);
-        modeRow.removeFromLeft (8.0f);
-        const auto rangeMinusButton = modeRow.removeFromLeft (56.0f);
-        modeRow.removeFromLeft (8.0f);
-        const auto rangePlusButton = modeRow.removeFromLeft (56.0f);
+        const auto heightButton = modeRow.removeFromLeft (60.0f);
+        modeRow.removeFromLeft (6.0f);
+        const auto normalButton = modeRow.removeFromLeft (64.0f);
+        modeRow.removeFromLeft (6.0f);
+        const auto materialButton = modeRow.removeFromLeft (64.0f);
+        modeRow.removeFromLeft (6.0f);
+        const auto cavityButton = modeRow.removeFromLeft (62.0f);
+        modeRow.removeFromLeft (6.0f);
+        const auto aoButton = modeRow.removeFromLeft (42.0f);
+        modeRow.removeFromLeft (6.0f);
+        const auto rangeMinusButton = modeRow.removeFromLeft (48.0f);
+        modeRow.removeFromLeft (6.0f);
+        const auto rangePlusButton = modeRow.removeFromLeft (48.0f);
 
         if (circleButton.contains (mouse))
         {
@@ -187,6 +189,13 @@ void MainComponent::mouseDown (const juce::MouseEvent& e)
         if (normalButton.contains (mouse))
         {
             previewMode = PreviewMode::normalMap;
+            repaint();
+            return;
+        }
+
+        if (materialButton.contains (mouse))
+        {
+            previewMode = PreviewMode::material;
             repaint();
             return;
         }
@@ -418,12 +427,14 @@ juce::var MainComponent::createProjectState() const
     root->setProperty ("previewShape", previewShape == PreviewShape::circle ? "circle" : "square");
     root->setProperty ("previewMode",
         previewMode == PreviewMode::normalMap ? "normalMap"
+        : previewMode == PreviewMode::material ? "material"
         : previewMode == PreviewMode::cavity ? "cavity"
         : previewMode == PreviewMode::ambientOcclusion ? "ambientOcclusion"
         : "heightMap");
 
     root->setProperty ("cavityPropagation", cavityPropagation);
     root->setProperty ("ambientOcclusionPropagation", ambientOcclusionPropagation);
+    root->setProperty ("baseColour", baseColour.toDisplayString (true));
 
     juce::Array<juce::var> points;
 
@@ -481,7 +492,9 @@ bool MainComponent::applyProjectState (const juce::var& state)
 
     previewMode = previewModeText == "normalMap"
         ? PreviewMode::normalMap
-        : previewModeText == "cavity"
+        : previewModeText == "material"
+            ? PreviewMode::material
+            : previewModeText == "cavity"
             ? PreviewMode::cavity
             : previewModeText == "ambientOcclusion"
                 ? PreviewMode::ambientOcclusion
@@ -493,6 +506,11 @@ bool MainComponent::applyProjectState (const juce::var& state)
 
     if (! loadedAmbientOcclusionPropagation.isVoid())
         ambientOcclusionPropagation = juce::jlimit (0.04f, 0.80f, (float) (double) loadedAmbientOcclusionPropagation);
+
+    const auto loadedBaseColour = root->getProperty ("baseColour");
+
+    if (! loadedBaseColour.isVoid())
+        baseColour = juce::Colour::fromString (loadedBaseColour.toString());
 
     selectedPointIndex = -1;
     draggedPointIndex = -1;
@@ -590,7 +608,7 @@ void MainComponent::drawPreview (juce::Graphics& g, juce::Rectangle<float> area)
     g.drawText ("Shape preview", titleRow.removeFromLeft (280.0f),
                 juce::Justification::left);
 
-    auto previewControls = area.reduced (18.0f).removeFromTop (56.0f).removeFromRight (420.0f);
+    auto previewControls = area.reduced (18.0f).removeFromTop (56.0f).removeFromRight (440.0f);
 
     auto shapeRow = previewControls.removeFromTop (24.0f);
     previewControls.removeFromTop (8.0f);
@@ -600,17 +618,19 @@ void MainComponent::drawPreview (juce::Graphics& g, juce::Rectangle<float> area)
     shapeRow.removeFromLeft (8.0f);
     const auto squareButton = shapeRow.removeFromLeft (80.0f);
 
-    const auto heightButton = modeRow.removeFromLeft (72.0f);
-    modeRow.removeFromLeft (8.0f);
-    const auto normalButton = modeRow.removeFromLeft (72.0f);
-    modeRow.removeFromLeft (8.0f);
-    const auto cavityButton = modeRow.removeFromLeft (68.0f);
-    modeRow.removeFromLeft (8.0f);
-    const auto aoButton = modeRow.removeFromLeft (48.0f);
-    modeRow.removeFromLeft (8.0f);
-    const auto rangeMinusButton = modeRow.removeFromLeft (56.0f);
-    modeRow.removeFromLeft (8.0f);
-    const auto rangePlusButton = modeRow.removeFromLeft (56.0f);
+    const auto heightButton = modeRow.removeFromLeft (60.0f);
+    modeRow.removeFromLeft (6.0f);
+    const auto normalButton = modeRow.removeFromLeft (64.0f);
+    modeRow.removeFromLeft (6.0f);
+    const auto materialButton = modeRow.removeFromLeft (64.0f);
+    modeRow.removeFromLeft (6.0f);
+    const auto cavityButton = modeRow.removeFromLeft (62.0f);
+    modeRow.removeFromLeft (6.0f);
+    const auto aoButton = modeRow.removeFromLeft (42.0f);
+    modeRow.removeFromLeft (6.0f);
+    const auto rangeMinusButton = modeRow.removeFromLeft (48.0f);
+    modeRow.removeFromLeft (6.0f);
+    const auto rangePlusButton = modeRow.removeFromLeft (48.0f);
 
     auto drawShapeButton = [&] (juce::Rectangle<float> button, const juce::String& text, bool selected)
     {
@@ -629,6 +649,7 @@ void MainComponent::drawPreview (juce::Graphics& g, juce::Rectangle<float> area)
     drawShapeButton (squareButton, "Square", previewShape == PreviewShape::square);
     drawShapeButton (heightButton, "Height", previewMode == PreviewMode::heightMap);
     drawShapeButton (normalButton, "Normal", previewMode == PreviewMode::normalMap);
+    drawShapeButton (materialButton, "Beauty", previewMode == PreviewMode::material);
     drawShapeButton (cavityButton, "Cavity", previewMode == PreviewMode::cavity);
     drawShapeButton (aoButton, "AO", previewMode == PreviewMode::ambientOcclusion);
     drawShapeButton (rangeMinusButton, "Range-", false);
@@ -833,7 +854,8 @@ void MainComponent::drawPreview (juce::Graphics& g, juce::Rectangle<float> area)
         return 1.0f - normalized;
     };
 
-    auto normalColourAtPixel = [&] (float pixelX, float pixelY, float currentHeight)
+    auto normalAtPixel = [&] (float pixelX, float pixelY, float currentHeight,
+                              float& nx, float& ny, float& nz)
     {
         constexpr float offset = 1.5f;
         constexpr float strength = 3.2f;
@@ -848,20 +870,59 @@ void MainComponent::drawPreview (juce::Graphics& g, juce::Rectangle<float> area)
         sampleHeightAtPixel (pixelX, pixelY - offset, up);
         sampleHeightAtPixel (pixelX, pixelY + offset, down);
 
-        auto nx = (left - right) * strength;
-        auto ny = (down - up) * strength;
-        auto nz = 1.0f;
+        nx = (left - right) * strength;
+        ny = (down - up) * strength;
+        nz = 1.0f;
 
-        const auto length = std::sqrt (nx * nx + ny * ny + nz * nz);
+        const auto length = juce::jmax (0.0001f, std::sqrt (nx * nx + ny * ny + nz * nz));
 
         nx /= length;
         ny /= length;
         nz /= length;
+    };
+
+    auto normalColourAtPixel = [&] (float pixelX, float pixelY, float currentHeight)
+    {
+        float nx = 0.0f;
+        float ny = 0.0f;
+        float nz = 1.0f;
+
+        normalAtPixel (pixelX, pixelY, currentHeight, nx, ny, nz);
 
         return juce::Colour::fromFloatRGBA (
             nx * 0.5f + 0.5f,
             ny * 0.5f + 0.5f,
             nz * 0.5f + 0.5f,
+            1.0f);
+    };
+
+    auto materialColourAtPixel = [&] (float pixelX, float pixelY, float profileX, float currentHeight)
+    {
+        float nx = 0.0f;
+        float ny = 0.0f;
+        float nz = 1.0f;
+
+        normalAtPixel (pixelX, pixelY, currentHeight, nx, ny, nz);
+
+        constexpr float lx = -0.38f;
+        constexpr float ly = -0.58f;
+        constexpr float lz = 0.72f;
+
+        const auto lightLength = std::sqrt (lx * lx + ly * ly + lz * lz);
+        const auto dot = juce::jlimit (0.0f, 1.0f, (nx * lx + ny * ly + nz * lz) / lightLength);
+
+        const auto heightLift = 0.86f + heightValueAt (profileX) * 0.22f;
+        const auto cavityShade = 0.70f + cavityAt (profileX) * 0.30f;
+        const auto aoShade = 0.66f + ambientOcclusionAtPixel (pixelX, pixelY, currentHeight) * 0.34f;
+        const auto diffuse = 0.34f + dot * 0.78f;
+
+        const auto shade = juce::jlimit (0.0f, 1.35f, diffuse * heightLift * cavityShade * aoShade);
+        const auto spec = std::pow (dot, 34.0f) * 0.18f;
+
+        return juce::Colour::fromFloatRGBA (
+            juce::jlimit (0.0f, 1.0f, baseColour.getFloatRed()   * shade + spec),
+            juce::jlimit (0.0f, 1.0f, baseColour.getFloatGreen() * shade + spec),
+            juce::jlimit (0.0f, 1.0f, baseColour.getFloatBlue()  * shade + spec),
             1.0f);
     };
 
@@ -882,6 +943,8 @@ void MainComponent::drawPreview (juce::Graphics& g, juce::Rectangle<float> area)
 
                 if (previewMode == PreviewMode::normalMap)
                     colour = normalColourAtPixel (pixelX, pixelY, heightValueAt (1.0f));
+                else if (previewMode == PreviewMode::material)
+                    colour = materialColourAtPixel (pixelX, pixelY, 1.0f, heightValueAt (1.0f));
                 else if (previewMode == PreviewMode::ambientOcclusion)
                 {
                     const auto value = ambientOcclusionAtPixel (pixelX, pixelY, heightValueAt (1.0f));
@@ -921,6 +984,8 @@ void MainComponent::drawPreview (juce::Graphics& g, juce::Rectangle<float> area)
 
             if (previewMode == PreviewMode::normalMap)
                 colour = normalColourAtPixel (pixelX, pixelY, heightValueAt (profileX));
+            else if (previewMode == PreviewMode::material)
+                colour = materialColourAtPixel (pixelX, pixelY, profileX, heightValueAt (profileX));
             else if (previewMode == PreviewMode::ambientOcclusion)
             {
                 const auto value = ambientOcclusionAtPixel (pixelX, pixelY, heightValueAt (profileX));
