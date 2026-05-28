@@ -86,6 +86,57 @@ juce::Rectangle<float> MainComponent::getLoadButtonArea() const
     return { r.getRight() - 86.0f, 20.0f, 78.0f, 28.0f };
 }
 
+void MainComponent::showSaveDialog()
+{
+    fileChooser = std::make_unique<juce::FileChooser> (
+        "Save ContourForge project",
+        juce::File::getSpecialLocation (juce::File::userDocumentsDirectory).getChildFile ("ContourForge.json"),
+        "*.json");
+
+    fileChooser->launchAsync (
+        juce::FileBrowserComponent::saveMode
+            | juce::FileBrowserComponent::canSelectFiles
+            | juce::FileBrowserComponent::warnAboutOverwriting,
+        [this] (const juce::FileChooser& chooser)
+        {
+            const auto file = chooser.getResult();
+
+            if (file == juce::File{})
+                return;
+
+            statusText = saveProjectToFile (file)
+                ? "Saved " + file.getFileName()
+                : "Save failed";
+
+            repaint();
+        });
+}
+
+void MainComponent::showLoadDialog()
+{
+    fileChooser = std::make_unique<juce::FileChooser> (
+        "Load ContourForge project",
+        juce::File::getSpecialLocation (juce::File::userDocumentsDirectory),
+        "*.json");
+
+    fileChooser->launchAsync (
+        juce::FileBrowserComponent::openMode
+            | juce::FileBrowserComponent::canSelectFiles,
+        [this] (const juce::FileChooser& chooser)
+        {
+            const auto file = chooser.getResult();
+
+            if (file == juce::File{})
+                return;
+
+            statusText = loadProjectFromFile (file)
+                ? "Loaded " + file.getFileName()
+                : "Load failed";
+
+            repaint();
+        });
+}
+
 void MainComponent::mouseDown (const juce::MouseEvent& e)
 {
     const auto area = getProfileArea();
@@ -93,19 +144,13 @@ void MainComponent::mouseDown (const juce::MouseEvent& e)
 
     if (getSaveButtonArea().contains (mouse))
     {
-        memorySavedState = createProjectState();
-        statusText = "Saved in memory";
-        repaint();
+        showSaveDialog();
         return;
     }
 
     if (getLoadButtonArea().contains (mouse))
     {
-        statusText = applyProjectState (memorySavedState)
-            ? "Loaded from memory"
-            : "Nothing saved yet";
-
-        repaint();
+        showLoadDialog();
         return;
     }
 
@@ -743,6 +788,28 @@ bool MainComponent::applyProjectState (const juce::var& state)
     draggedColourProfileIndex = -1;
 
     return true;
+}
+
+bool MainComponent::saveProjectToFile (const juce::File& file) const
+{
+    const auto target = file.hasFileExtension ("json")
+        ? file
+        : file.withFileExtension ("json");
+
+    return target.replaceWithText (juce::JSON::toString (createProjectState(), true));
+}
+
+bool MainComponent::loadProjectFromFile (const juce::File& file)
+{
+    if (! file.existsAsFile())
+        return false;
+
+    const auto parsed = juce::JSON::parse (file.loadFileAsString());
+
+    if (parsed.isVoid())
+        return false;
+
+    return applyProjectState (parsed);
 }
 
 std::vector<juce::Colour> MainComponent::getPaletteColours() const

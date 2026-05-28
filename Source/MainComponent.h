@@ -49,6 +49,7 @@ private:
     bool autoShadeEnabled = true;
     juce::String statusText;
     juce::var memorySavedState;
+    std::unique_ptr<juce::FileChooser> fileChooser;
 
     int selectedColourProfileIndex = 0;
     int draggedColourProfileIndex = -1;
@@ -73,6 +74,10 @@ private:
 
     juce::var createProjectState() const;
     bool applyProjectState (const juce::var& state);
+    void showSaveDialog();
+    void showLoadDialog();
+    bool saveProjectToFile (const juce::File& file) const;
+    bool loadProjectFromFile (const juce::File& file);
 
     std::vector<juce::Colour> getPaletteColours() const;
 
