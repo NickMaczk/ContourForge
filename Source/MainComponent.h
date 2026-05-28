@@ -14,6 +14,7 @@ public:
     void mouseDown (const juce::MouseEvent&) override;
     void mouseDrag (const juce::MouseEvent&) override;
     void mouseUp (const juce::MouseEvent&) override;
+    void mouseDoubleClick (const juce::MouseEvent&) override;
 
 private:
     struct ProfilePoint
@@ -25,6 +26,7 @@ private:
 
     std::vector<ProfilePoint> profilePoints;
     int draggedPointIndex = -1;
+    int selectedPointIndex = -1;
 
     juce::Rectangle<float> getProfileArea() const;
     juce::Rectangle<float> getPreviewArea() const;

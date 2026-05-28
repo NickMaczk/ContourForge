@@ -26,8 +26,8 @@ void MainComponent::paint (juce::Graphics& g)
 
     g.setFont (juce::FontOptions (13.0f));
     g.setColour (juce::Colours::white.withAlpha (0.45f));
-    g.drawText ("Drag the profile points. The preview is generated from the same profile.",
-                24, 46, 560, 22, juce::Justification::left);
+    g.drawText ("Drag points. Double-click to add. Right-click an internal point to remove.",
+                24, 46, 620, 22, juce::Justification::left);
 
     drawProfileEditor (g, getProfileArea());
     drawPreview (g, getPreviewArea());
@@ -43,15 +43,28 @@ void MainComponent::mouseDown (const juce::MouseEvent& e)
     const auto mouse = e.position;
 
     draggedPointIndex = -1;
+    selectedPointIndex = -1;
 
     for (int i = 0; i < (int) profilePoints.size(); ++i)
     {
         if (profileToScreen (profilePoints[(size_t) i], area).getDistanceFrom (mouse) < 12.0f)
         {
+            selectedPointIndex = i;
+
+            if (e.mods.isPopupMenu() && i > 0 && i < (int) profilePoints.size() - 1)
+            {
+                profilePoints.erase (profilePoints.begin() + i);
+                selectedPointIndex = -1;
+                repaint();
+                return;
+            }
+
             draggedPointIndex = i;
             break;
         }
     }
+
+    repaint();
 }
 
 void MainComponent::mouseDrag (const juce::MouseEvent& e)
@@ -68,6 +81,47 @@ void MainComponent::mouseDrag (const juce::MouseEvent& e)
 void MainComponent::mouseUp (const juce::MouseEvent&)
 {
     draggedPointIndex = -1;
+}
+
+void MainComponent::mouseDoubleClick (const juce::MouseEvent& e)
+{
+    const auto area = getProfileArea();
+
+    if (! area.contains (e.position))
+        return;
+
+    for (const auto& point : profilePoints)
+        if (profileToScreen (point, area).getDistanceFrom (e.position) < 12.0f)
+            return;
+
+    auto graph = area.reduced (28.0f);
+
+    const auto x = juce::jlimit (0.0f, 1.0f, (e.position.x - graph.getX()) / graph.getWidth());
+    const auto y = juce::jlimit (0.0f, 1.0f, (graph.getBottom() - e.position.y) / graph.getHeight());
+
+    if (x <= 0.02f || x >= 0.98f)
+        return;
+
+    auto insertIndex = 1;
+
+    while (insertIndex < (int) profilePoints.size() && profilePoints[(size_t) insertIndex].x < x)
+        ++insertIndex;
+
+    if (x - profilePoints[(size_t) insertIndex - 1].x < 0.025f)
+        return;
+
+    if (profilePoints[(size_t) insertIndex].x - x < 0.025f)
+        return;
+
+    auto newPoint = sampleProfileAt (x);
+    newPoint.y = y;
+
+    profilePoints.insert (profilePoints.begin() + insertIndex, newPoint);
+
+    selectedPointIndex = insertIndex;
+    draggedPointIndex = insertIndex;
+
+    repaint();
 }
 
 juce::Rectangle<float> MainComponent::getProfileArea() const
@@ -185,12 +239,13 @@ void MainComponent::drawProfileEditor (juce::Graphics& g, juce::Rectangle<float>
     {
         const auto pt = profileToScreen (profilePoints[(size_t) i], area);
         const auto isDragged = i == draggedPointIndex;
+        const auto isSelected = i == selectedPointIndex;
 
         g.setColour (profilePoints[(size_t) i].colour);
         g.fillEllipse (pt.x - 7.0f, pt.y - 7.0f, 14.0f, 14.0f);
 
-        g.setColour (juce::Colours::white.withAlpha (isDragged ? 0.95f : 0.5f));
-        g.drawEllipse (pt.x - 7.0f, pt.y - 7.0f, 14.0f, 14.0f, isDragged ? 2.0f : 1.0f);
+        g.setColour (juce::Colours::white.withAlpha ((isDragged || isSelected) ? 0.95f : 0.5f));
+        g.drawEllipse (pt.x - 7.0f, pt.y - 7.0f, 14.0f, 14.0f, (isDragged || isSelected) ? 2.0f : 1.0f);
     }
 
     g.setColour (juce::Colours::white.withAlpha (0.55f));
