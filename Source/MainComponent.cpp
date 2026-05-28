@@ -810,10 +810,16 @@ void MainComponent::drawPreview (juce::Graphics& g, juce::Rectangle<float> area)
 
     const auto imageBounds = shapeArea.getSmallestIntegerContainer();
 
+    const auto isFastPreview = draggedPointIndex >= 0;
+    const auto renderScale = isFastPreview ? 0.5f : 1.0f;
+
+    const auto renderWidth = juce::jmax (1, juce::roundToInt ((float) imageBounds.getWidth() * renderScale));
+    const auto renderHeight = juce::jmax (1, juce::roundToInt ((float) imageBounds.getHeight() * renderScale));
+
     juce::Image previewImage (
         juce::Image::ARGB,
-        imageBounds.getWidth(),
-        imageBounds.getHeight(),
+        renderWidth,
+        renderHeight,
         true);
 
     auto sampleHeightAtPixel = [&] (float pixelX, float pixelY, float& height)
@@ -977,8 +983,11 @@ void MainComponent::drawPreview (juce::Graphics& g, juce::Rectangle<float> area)
     {
         for (int x = 0; x < previewImage.getWidth(); ++x)
         {
-            const auto pixelX = (float) imageBounds.getX() + (float) x + 0.5f;
-            const auto pixelY = (float) imageBounds.getY() + (float) y + 0.5f;
+            const auto pixelX = (float) imageBounds.getX()
+                + ((float) x + 0.5f) * (float) imageBounds.getWidth() / (float) previewImage.getWidth();
+
+            const auto pixelY = (float) imageBounds.getY()
+                + ((float) y + 0.5f) * (float) imageBounds.getHeight() / (float) previewImage.getHeight();
 
             const auto dx = pixelX - centre.x;
             const auto dy = pixelY - centre.y;
@@ -1043,7 +1052,16 @@ void MainComponent::drawPreview (juce::Graphics& g, juce::Rectangle<float> area)
         }
     }
 
-    g.drawImageAt (previewImage, imageBounds.getX(), imageBounds.getY());
+    g.drawImage (
+        previewImage,
+        imageBounds.getX(),
+        imageBounds.getY(),
+        imageBounds.getWidth(),
+        imageBounds.getHeight(),
+        0,
+        0,
+        previewImage.getWidth(),
+        previewImage.getHeight());
 
     g.setColour (juce::Colours::white.withAlpha (0.12f));
 
