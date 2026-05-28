@@ -21,10 +21,25 @@ private:
     {
         float x = 0.0f; // 0..1, from outside to inside
         float y = 0.0f; // 0..1, profile height
+    };
+
+    struct ColourProfile
+    {
+        float angleDeg = 0.0f;
+        std::vector<juce::Colour> colours;
+    };
+
+    struct SampledProfilePoint
+    {
+        float x = 0.0f;
+        float y = 0.0f;
         juce::Colour colour;
     };
 
     std::vector<ProfilePoint> profilePoints;
+    std::vector<ColourProfile> colourProfiles;
+
+    int selectedColourProfileIndex = 0;
     int draggedPointIndex = -1;
     int selectedPointIndex = -1;
 
@@ -35,7 +50,10 @@ private:
     juce::Point<float> profileToScreen (const ProfilePoint&, juce::Rectangle<float>) const;
     ProfilePoint screenToProfile (juce::Point<float>, juce::Rectangle<float>, int pointIndex) const;
 
-    ProfilePoint sampleProfileAt (float x) const;
+    SampledProfilePoint sampleProfileAt (float x, int colourProfileIndex) const;
+    juce::Colour getPointColour (int pointIndex) const;
+    void setPointColour (int pointIndex, juce::Colour colour);
+
     std::vector<juce::Colour> getPaletteColours() const;
 
     void drawProfileEditor (juce::Graphics&, juce::Rectangle<float>);
