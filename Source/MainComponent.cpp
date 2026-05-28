@@ -40,8 +40,8 @@ void MainComponent::paint (juce::Graphics& g)
 
     g.setFont (juce::FontOptions (13.0f));
     g.setColour (juce::Colours::white.withAlpha (0.45f));
-    g.drawText ("Drag points. Double-click to add. Right-click an internal point to remove.",
-                24, 46, 620, 22, juce::Justification::left);
+    g.drawText ("Drag points. Double-click to add. Right-click to remove. Duplicate colour profiles below.",
+                24, 46, 720, 22, juce::Justification::left);
 
     drawProfileEditor (g, getProfileArea());
     drawPreview (g, getPreviewArea());
@@ -55,6 +55,51 @@ void MainComponent::mouseDown (const juce::MouseEvent& e)
 {
     const auto area = getProfileArea();
     const auto mouse = e.position;
+
+    if (getColourProfileBarArea().contains (mouse))
+    {
+        auto bar = getColourProfileBarArea();
+
+        constexpr float pillWidth = 78.0f;
+        constexpr float pillHeight = 24.0f;
+        constexpr float gap = 8.0f;
+
+        for (int i = 0; i < (int) colourProfiles.size(); ++i)
+        {
+            const auto pill = juce::Rectangle<float> (
+                bar.getX() + (pillWidth + gap) * (float) i,
+                bar.getY(),
+                pillWidth,
+                pillHeight);
+
+            if (pill.contains (mouse))
+            {
+                selectedColourProfileIndex = i;
+                repaint();
+                return;
+            }
+        }
+
+        const auto addX = bar.getX() + (pillWidth + gap) * (float) colourProfiles.size();
+        const auto addPill = juce::Rectangle<float> (addX, bar.getY(), 96.0f, pillHeight);
+
+        if (addPill.contains (mouse) && ! colourProfiles.empty())
+        {
+            auto clone = colourProfiles[(size_t) selectedColourProfileIndex];
+            clone.angleDeg += 90.0f;
+
+            if (clone.angleDeg >= 360.0f)
+                clone.angleDeg -= 360.0f;
+
+            colourProfiles.push_back (clone);
+            selectedColourProfileIndex = (int) colourProfiles.size() - 1;
+
+            repaint();
+            return;
+        }
+
+        return;
+    }
 
     if (selectedPointIndex >= 0 && getColourPaletteArea().contains (mouse))
     {
@@ -194,6 +239,13 @@ juce::Rectangle<float> MainComponent::getPreviewArea() const
     r.removeFromTop (72.0f);
     r.removeFromLeft (getWidth() * 0.42f);
     return r.reduced (18.0f, 12.0f);
+}
+
+juce::Rectangle<float> MainComponent::getColourProfileBarArea() const
+{
+    auto area = getProfileArea();
+    area.removeFromBottom (66.0f);
+    return area.removeFromBottom (32.0f).reduced (18.0f, 4.0f);
 }
 
 juce::Rectangle<float> MainComponent::getColourPaletteArea() const
@@ -369,7 +421,47 @@ void MainComponent::drawProfileEditor (juce::Graphics& g, juce::Rectangle<float>
     g.drawText ("Geometry + colour profile", area.reduced (18.0f).removeFromTop (24.0f),
                 juce::Justification::left);
 
+    drawColourProfileBar (g, getColourProfileBarArea());
     drawColourPalette (g, getColourPaletteArea());
+}
+
+void MainComponent::drawColourProfileBar (juce::Graphics& g, juce::Rectangle<float> area)
+{
+    constexpr float pillWidth = 78.0f;
+    constexpr float pillHeight = 24.0f;
+    constexpr float gap = 8.0f;
+
+    g.setFont (juce::FontOptions (12.0f, juce::Font::bold));
+
+    for (int i = 0; i < (int) colourProfiles.size(); ++i)
+    {
+        const auto pill = juce::Rectangle<float> (
+            area.getX() + (pillWidth + gap) * (float) i,
+            area.getY(),
+            pillWidth,
+            pillHeight);
+
+        const auto isSelected = i == selectedColourProfileIndex;
+
+        g.setColour (juce::Colours::white.withAlpha (isSelected ? 0.18f : 0.07f));
+        g.fillRoundedRectangle (pill, 6.0f);
+
+        g.setColour (juce::Colours::white.withAlpha (isSelected ? 0.85f : 0.35f));
+        g.drawRoundedRectangle (pill, 6.0f, isSelected ? 2.0f : 1.0f);
+
+        const auto text = "P" + juce::String (i + 1) + "  " + juce::String ((int) colourProfiles[(size_t) i].angleDeg) + "deg";
+        g.drawText (text, pill.reduced (6.0f, 0.0f), juce::Justification::centredLeft);
+    }
+
+    const auto addX = area.getX() + (pillWidth + gap) * (float) colourProfiles.size();
+    const auto addPill = juce::Rectangle<float> (addX, area.getY(), 96.0f, pillHeight);
+
+    g.setColour (juce::Colours::white.withAlpha (0.07f));
+    g.fillRoundedRectangle (addPill, 6.0f);
+
+    g.setColour (juce::Colours::white.withAlpha (0.35f));
+    g.drawRoundedRectangle (addPill, 6.0f, 1.0f);
+    g.drawText ("+ duplicate", addPill.reduced (8.0f, 0.0f), juce::Justification::centredLeft);
 }
 
 void MainComponent::drawColourPalette (juce::Graphics& g, juce::Rectangle<float> area)

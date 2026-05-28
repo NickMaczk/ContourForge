@@ -45,6 +45,7 @@ private:
 
     juce::Rectangle<float> getProfileArea() const;
     juce::Rectangle<float> getPreviewArea() const;
+    juce::Rectangle<float> getColourProfileBarArea() const;
     juce::Rectangle<float> getColourPaletteArea() const;
 
     juce::Point<float> profileToScreen (const ProfilePoint&, juce::Rectangle<float>) const;
@@ -57,6 +58,7 @@ private:
     std::vector<juce::Colour> getPaletteColours() const;
 
     void drawProfileEditor (juce::Graphics&, juce::Rectangle<float>);
+    void drawColourProfileBar (juce::Graphics&, juce::Rectangle<float>);
     void drawColourPalette (juce::Graphics&, juce::Rectangle<float>);
     void drawPreview (juce::Graphics&, juce::Rectangle<float>);
 
