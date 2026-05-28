@@ -58,14 +58,19 @@ void MainComponent::mouseDown (const juce::MouseEvent& e)
 
     {
         auto previewArea = getPreviewArea();
-        auto shapeButtons = previewArea.reduced (18.0f).removeFromTop (24.0f);
-        shapeButtons = shapeButtons.removeFromRight (232.0f);
+        auto previewControls = previewArea.reduced (18.0f).removeFromTop (56.0f).removeFromRight (160.0f);
 
-        const auto circleButton = shapeButtons.removeFromLeft (68.0f);
-        shapeButtons.removeFromLeft (8.0f);
-        const auto squareButton = shapeButtons.removeFromLeft (72.0f);
-        shapeButtons.removeFromLeft (8.0f);
-        const auto shadeButton = shapeButtons.removeFromLeft (76.0f);
+        auto shapeRow = previewControls.removeFromTop (24.0f);
+        previewControls.removeFromTop (8.0f);
+        auto shadeRow = previewControls.removeFromTop (24.0f);
+
+        const auto circleButton = shapeRow.removeFromLeft (72.0f);
+        shapeRow.removeFromLeft (8.0f);
+        const auto squareButton = shapeRow.removeFromLeft (80.0f);
+
+        const auto shadeButton = shadeRow.removeFromLeft (92.0f);
+        shadeRow.removeFromLeft (8.0f);
+        const auto bakeButton = shadeRow.removeFromLeft (60.0f);
 
         if (circleButton.contains (mouse))
         {
@@ -84,6 +89,14 @@ void MainComponent::mouseDown (const juce::MouseEvent& e)
         if (shadeButton.contains (mouse))
         {
             autoShadeEnabled = ! autoShadeEnabled;
+            repaint();
+            return;
+        }
+
+        if (bakeButton.contains (mouse))
+        {
+            bakeAutoShadeIntoSelectedProfile();
+            autoShadeEnabled = false;
             repaint();
             return;
         }
@@ -515,6 +528,43 @@ void MainComponent::setPointColour (int pointIndex, juce::Colour colour)
     colours[(size_t) safePointIndex] = colour;
 }
 
+juce::Colour MainComponent::getAutoShadedPointColour (int pointIndex, int colourProfileIndex) const
+{
+    const auto baseColour = colourProfiles[(size_t) colourProfileIndex].colours[(size_t) pointIndex];
+
+    const auto current = profilePoints[(size_t) pointIndex];
+
+    const auto previousIndex = juce::jmax (0, pointIndex - 1);
+    const auto nextIndex = juce::jmin ((int) profilePoints.size() - 1, pointIndex + 1);
+
+    const auto previous = profilePoints[(size_t) previousIndex];
+    const auto next = profilePoints[(size_t) nextIndex];
+
+    const auto localSlope = (next.y - previous.y) * 0.5f;
+    const auto heightTint = (current.y - 0.5f) * 0.18f;
+    const auto slopeTint = localSlope * 0.32f;
+    const auto tint = juce::jlimit (-0.35f, 0.35f, heightTint + slopeTint);
+
+    if (tint >= 0.0f)
+        return baseColour.interpolatedWith (juce::Colours::white, tint);
+
+    return baseColour.interpolatedWith (juce::Colours::black, -tint);
+}
+
+void MainComponent::bakeAutoShadeIntoSelectedProfile()
+{
+    if (colourProfiles.empty())
+        return;
+
+    const auto safeProfileIndex = juce::jlimit (0, (int) colourProfiles.size() - 1, selectedColourProfileIndex);
+    auto bakedColours = colourProfiles[(size_t) safeProfileIndex].colours;
+
+    for (int i = 0; i < (int) bakedColours.size(); ++i)
+        bakedColours[(size_t) i] = getAutoShadedPointColour (i, safeProfileIndex);
+
+    colourProfiles[(size_t) safeProfileIndex].colours = bakedColours;
+}
+
 std::vector<juce::Colour> MainComponent::getPaletteColours() const
 {
     return
@@ -688,12 +738,19 @@ void MainComponent::drawPreview (juce::Graphics& g, juce::Rectangle<float> area)
     g.drawText ("Colour-profile preview", titleRow.removeFromLeft (280.0f),
                 juce::Justification::left);
 
-    auto shapeButtons = titleRow.removeFromRight (232.0f);
-    const auto circleButton = shapeButtons.removeFromLeft (68.0f);
-    shapeButtons.removeFromLeft (8.0f);
-    const auto squareButton = shapeButtons.removeFromLeft (72.0f);
-    shapeButtons.removeFromLeft (8.0f);
-    const auto shadeButton = shapeButtons.removeFromLeft (76.0f);
+    auto previewControls = area.reduced (18.0f).removeFromTop (56.0f).removeFromRight (160.0f);
+
+    auto shapeRow = previewControls.removeFromTop (24.0f);
+    previewControls.removeFromTop (8.0f);
+    auto shadeRow = previewControls.removeFromTop (24.0f);
+
+    const auto circleButton = shapeRow.removeFromLeft (72.0f);
+    shapeRow.removeFromLeft (8.0f);
+    const auto squareButton = shapeRow.removeFromLeft (80.0f);
+
+    const auto shadeButton = shadeRow.removeFromLeft (92.0f);
+    shadeRow.removeFromLeft (8.0f);
+    const auto bakeButton = shadeRow.removeFromLeft (60.0f);
 
     auto drawShapeButton = [&] (juce::Rectangle<float> button, const juce::String& text, bool selected)
     {
@@ -711,6 +768,7 @@ void MainComponent::drawPreview (juce::Graphics& g, juce::Rectangle<float> area)
     drawShapeButton (circleButton, "Circle", previewShape == PreviewShape::circle);
     drawShapeButton (squareButton, "Square", previewShape == PreviewShape::square);
     drawShapeButton (shadeButton, autoShadeEnabled ? "Shade On" : "Shade Off", autoShadeEnabled);
+    drawShapeButton (bakeButton, "Bake", false);
 
     auto shapeArea = area.reduced (84.0f, 92.0f);
     const auto side = juce::jmin (shapeArea.getWidth(), shapeArea.getHeight());
