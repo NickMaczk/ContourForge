@@ -46,6 +46,8 @@ private:
     std::vector<ColourProfile> colourProfiles;
 
     PreviewShape previewShape = PreviewShape::circle;
+    bool autoShadeEnabled = true;
+
     int selectedColourProfileIndex = 0;
     int draggedColourProfileIndex = -1;
     int draggedPointIndex = -1;

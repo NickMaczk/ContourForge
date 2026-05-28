@@ -59,11 +59,13 @@ void MainComponent::mouseDown (const juce::MouseEvent& e)
     {
         auto previewArea = getPreviewArea();
         auto shapeButtons = previewArea.reduced (18.0f).removeFromTop (24.0f);
-        shapeButtons = shapeButtons.removeFromRight (148.0f);
+        shapeButtons = shapeButtons.removeFromRight (232.0f);
 
         const auto circleButton = shapeButtons.removeFromLeft (68.0f);
         shapeButtons.removeFromLeft (8.0f);
         const auto squareButton = shapeButtons.removeFromLeft (72.0f);
+        shapeButtons.removeFromLeft (8.0f);
+        const auto shadeButton = shapeButtons.removeFromLeft (76.0f);
 
         if (circleButton.contains (mouse))
         {
@@ -75,6 +77,13 @@ void MainComponent::mouseDown (const juce::MouseEvent& e)
         if (squareButton.contains (mouse))
         {
             previewShape = PreviewShape::square;
+            repaint();
+            return;
+        }
+
+        if (shadeButton.contains (mouse))
+        {
+            autoShadeEnabled = ! autoShadeEnabled;
             repaint();
             return;
         }
@@ -679,10 +688,12 @@ void MainComponent::drawPreview (juce::Graphics& g, juce::Rectangle<float> area)
     g.drawText ("Colour-profile preview", titleRow.removeFromLeft (280.0f),
                 juce::Justification::left);
 
-    auto shapeButtons = titleRow.removeFromRight (148.0f);
+    auto shapeButtons = titleRow.removeFromRight (232.0f);
     const auto circleButton = shapeButtons.removeFromLeft (68.0f);
     shapeButtons.removeFromLeft (8.0f);
     const auto squareButton = shapeButtons.removeFromLeft (72.0f);
+    shapeButtons.removeFromLeft (8.0f);
+    const auto shadeButton = shapeButtons.removeFromLeft (76.0f);
 
     auto drawShapeButton = [&] (juce::Rectangle<float> button, const juce::String& text, bool selected)
     {
@@ -699,6 +710,7 @@ void MainComponent::drawPreview (juce::Graphics& g, juce::Rectangle<float> area)
 
     drawShapeButton (circleButton, "Circle", previewShape == PreviewShape::circle);
     drawShapeButton (squareButton, "Square", previewShape == PreviewShape::square);
+    drawShapeButton (shadeButton, autoShadeEnabled ? "Shade On" : "Shade Off", autoShadeEnabled);
 
     auto shapeArea = area.reduced (84.0f, 92.0f);
     const auto side = juce::jmin (shapeArea.getWidth(), shapeArea.getHeight());
@@ -836,17 +848,20 @@ void MainComponent::drawPreview (juce::Graphics& g, juce::Rectangle<float> area)
 
             auto colour = colourAt (midX, midAngle);
 
-            const auto midHeight = (a.y + b.y) * 0.5f;
-            const auto slope = b.y - a.y;
+            if (autoShadeEnabled)
+            {
+                const auto midHeight = (a.y + b.y) * 0.5f;
+                const auto slope = b.y - a.y;
 
-            const auto heightTint = (midHeight - 0.5f) * 0.18f;
-            const auto slopeTint = slope * 0.32f;
-            const auto tint = juce::jlimit (-0.35f, 0.35f, heightTint + slopeTint);
+                const auto heightTint = (midHeight - 0.5f) * 0.18f;
+                const auto slopeTint = slope * 0.32f;
+                const auto tint = juce::jlimit (-0.35f, 0.35f, heightTint + slopeTint);
 
-            if (tint >= 0.0f)
-                colour = colour.interpolatedWith (juce::Colours::white, tint);
-            else
-                colour = colour.interpolatedWith (juce::Colours::black, -tint);
+                if (tint >= 0.0f)
+                    colour = colour.interpolatedWith (juce::Colours::white, tint);
+                else
+                    colour = colour.interpolatedWith (juce::Colours::black, -tint);
+            }
 
             g.setColour (colour);
             g.fillPath (wedge);
