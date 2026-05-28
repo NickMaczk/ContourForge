@@ -152,6 +152,8 @@ void MainComponent::mouseDown (const juce::MouseEvent& e)
         const auto squareButton = shapeRow.removeFromLeft (80.0f);
         shapeRow.removeFromLeft (8.0f);
         const auto baseButton = shapeRow.removeFromLeft (76.0f);
+        shapeRow.removeFromLeft (8.0f);
+        const auto previewQualityButton = shapeRow.removeFromLeft (92.0f);
 
         const auto heightButton = modeRow.removeFromLeft (60.0f);
         modeRow.removeFromLeft (6.0f);
@@ -207,6 +209,16 @@ void MainComponent::mouseDown (const juce::MouseEvent& e)
 
             baseColour = baseColours[(size_t) nextIndex];
             previewMode = PreviewMode::material;
+            repaint();
+            return;
+        }
+
+        if (previewQualityButton.contains (mouse))
+        {
+            previewQualityDivisor = previewQualityDivisor == 2 ? 4
+                : previewQualityDivisor == 4 ? 8
+                : 2;
+
             repaint();
             return;
         }
@@ -467,6 +479,7 @@ juce::var MainComponent::createProjectState() const
     root->setProperty ("cavityPropagation", cavityPropagation);
     root->setProperty ("ambientOcclusionPropagation", ambientOcclusionPropagation);
     root->setProperty ("baseColour", baseColour.toDisplayString (true));
+    root->setProperty ("previewQualityDivisor", previewQualityDivisor);
 
     juce::Array<juce::var> points;
 
@@ -543,6 +556,11 @@ bool MainComponent::applyProjectState (const juce::var& state)
 
     if (! loadedBaseColour.isVoid())
         baseColour = juce::Colour::fromString (loadedBaseColour.toString());
+
+    const auto loadedPreviewQualityDivisor = (int) root->getProperty ("previewQualityDivisor");
+
+    if (loadedPreviewQualityDivisor == 2 || loadedPreviewQualityDivisor == 4 || loadedPreviewQualityDivisor == 8)
+        previewQualityDivisor = loadedPreviewQualityDivisor;
 
     selectedPointIndex = -1;
     draggedPointIndex = -1;
@@ -651,6 +669,8 @@ void MainComponent::drawPreview (juce::Graphics& g, juce::Rectangle<float> area)
     const auto squareButton = shapeRow.removeFromLeft (80.0f);
     shapeRow.removeFromLeft (8.0f);
     const auto baseButton = shapeRow.removeFromLeft (76.0f);
+    shapeRow.removeFromLeft (8.0f);
+    const auto previewQualityButton = shapeRow.removeFromLeft (92.0f);
 
     const auto heightButton = modeRow.removeFromLeft (60.0f);
     modeRow.removeFromLeft (6.0f);
@@ -694,6 +714,8 @@ void MainComponent::drawPreview (juce::Graphics& g, juce::Rectangle<float> area)
 
     g.setFont (juce::FontOptions (12.0f, juce::Font::bold));
     g.drawText ("Base", baseButton.reduced (6.0f, 0.0f), juce::Justification::centred);
+
+    drawShapeButton (previewQualityButton, "Drag /" + juce::String (previewQualityDivisor), false);
     drawShapeButton (heightButton, "Height", previewMode == PreviewMode::heightMap);
     drawShapeButton (normalButton, "Normal", previewMode == PreviewMode::normalMap);
     drawShapeButton (materialButton, "Beauty", previewMode == PreviewMode::material);
@@ -811,7 +833,7 @@ void MainComponent::drawPreview (juce::Graphics& g, juce::Rectangle<float> area)
     const auto imageBounds = shapeArea.getSmallestIntegerContainer();
 
     const auto isFastPreview = draggedPointIndex >= 0;
-    const auto renderScale = isFastPreview ? 0.5f : 1.0f;
+    const auto renderScale = isFastPreview ? 1.0f / (float) previewQualityDivisor : 1.0f;
 
     const auto renderWidth = juce::jmax (1, juce::roundToInt ((float) imageBounds.getWidth() * renderScale));
     const auto renderHeight = juce::jmax (1, juce::roundToInt ((float) imageBounds.getHeight() * renderScale));
