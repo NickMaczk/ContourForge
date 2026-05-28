@@ -42,6 +42,34 @@ void MainComponent::mouseDown (const juce::MouseEvent& e)
     const auto area = getProfileArea();
     const auto mouse = e.position;
 
+    if (selectedPointIndex >= 0 && getColourPaletteArea().contains (mouse))
+    {
+        const auto colours = getPaletteColours();
+        auto paletteArea = getColourPaletteArea();
+        paletteArea.removeFromTop (18.0f);
+
+        constexpr float swatchSize = 24.0f;
+        constexpr float gap = 8.0f;
+
+        for (int i = 0; i < (int) colours.size(); ++i)
+        {
+            const auto swatch = juce::Rectangle<float> (
+                paletteArea.getX() + (swatchSize + gap) * (float) i,
+                paletteArea.getY(),
+                swatchSize,
+                swatchSize);
+
+            if (swatch.contains (mouse))
+            {
+                profilePoints[(size_t) selectedPointIndex].colour = colours[(size_t) i];
+                repaint();
+                return;
+            }
+        }
+
+        return;
+    }
+
     draggedPointIndex = -1;
     selectedPointIndex = -1;
 
@@ -139,6 +167,12 @@ juce::Rectangle<float> MainComponent::getPreviewArea() const
     return r.reduced (18.0f, 12.0f);
 }
 
+juce::Rectangle<float> MainComponent::getColourPaletteArea() const
+{
+    auto area = getProfileArea();
+    return area.removeFromBottom (56.0f).reduced (18.0f, 8.0f);
+}
+
 juce::Point<float> MainComponent::profileToScreen (const ProfilePoint& p, juce::Rectangle<float> area) const
 {
     area = area.reduced (28.0f);
@@ -203,6 +237,21 @@ MainComponent::ProfilePoint MainComponent::sampleProfileAt (float x) const
     return profilePoints.back();
 }
 
+std::vector<juce::Colour> MainComponent::getPaletteColours() const
+{
+    return
+    {
+        juce::Colour::fromRGB (16, 16, 18),
+        juce::Colour::fromRGB (42, 43, 48),
+        juce::Colour::fromRGB (85, 88, 98),
+        juce::Colour::fromRGB (140, 145, 158),
+        juce::Colour::fromRGB (220, 224, 232),
+        juce::Colour::fromRGB (80, 130, 255),
+        juce::Colour::fromRGB (240, 80, 86),
+        juce::Colour::fromRGB (245, 184, 80)
+    };
+}
+
 void MainComponent::drawProfileEditor (juce::Graphics& g, juce::Rectangle<float> area)
 {
     g.setColour (juce::Colour::fromRGB (22, 22, 26));
@@ -252,6 +301,43 @@ void MainComponent::drawProfileEditor (juce::Graphics& g, juce::Rectangle<float>
     g.setFont (juce::FontOptions (14.0f, juce::Font::bold));
     g.drawText ("Geometry + colour profile", area.reduced (18.0f).removeFromTop (24.0f),
                 juce::Justification::left);
+
+    drawColourPalette (g, getColourPaletteArea());
+}
+
+void MainComponent::drawColourPalette (juce::Graphics& g, juce::Rectangle<float> area)
+{
+    g.setFont (juce::FontOptions (12.0f));
+    g.setColour (juce::Colours::white.withAlpha (0.45f));
+
+    const auto label = selectedPointIndex >= 0
+        ? "Selected point colour"
+        : "Select a point to edit its colour";
+
+    g.drawText (label, area.removeFromTop (18.0f), juce::Justification::left);
+
+    const auto colours = getPaletteColours();
+
+    constexpr float swatchSize = 24.0f;
+    constexpr float gap = 8.0f;
+
+    for (int i = 0; i < (int) colours.size(); ++i)
+    {
+        const auto swatch = juce::Rectangle<float> (
+            area.getX() + (swatchSize + gap) * (float) i,
+            area.getY(),
+            swatchSize,
+            swatchSize);
+
+        g.setColour (colours[(size_t) i]);
+        g.fillRoundedRectangle (swatch, 5.0f);
+
+        const auto isActive = selectedPointIndex >= 0
+            && profilePoints[(size_t) selectedPointIndex].colour.getARGB() == colours[(size_t) i].getARGB();
+
+        g.setColour (juce::Colours::white.withAlpha (isActive ? 0.95f : 0.25f));
+        g.drawRoundedRectangle (swatch, 5.0f, isActive ? 2.0f : 1.0f);
+    }
 }
 
 void MainComponent::drawPreview (juce::Graphics& g, juce::Rectangle<float> area)
