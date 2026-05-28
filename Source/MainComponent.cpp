@@ -189,15 +189,10 @@ void MainComponent::drawPreview (juce::Graphics& g, juce::Rectangle<float> area)
 
     auto shapeArea = area.reduced (70.0f, 82.0f);
     const auto maxInset = juce::jmin (shapeArea.getWidth(), shapeArea.getHeight()) * 0.46f;
-    const auto depthAmount = 42.0f;
 
-    auto getContour = [&] (const ProfilePoint& p, int pointIndex)
+    auto getContour = [&] (const ProfilePoint& p)
     {
-        const auto baseInset = p.x * maxInset;
-        const auto isAnchor = pointIndex == 0 || pointIndex == (int) profilePoints.size() - 1;
-        const auto depth = isAnchor ? 0.0f : (p.y - 0.5f) * depthAmount;
-
-        return shapeArea.reduced (baseInset - depth);
+        return shapeArea.reduced (p.x * maxInset);
     };
 
     auto getCornerRadius = [] (const ProfilePoint& p)
@@ -210,8 +205,8 @@ void MainComponent::drawPreview (juce::Graphics& g, juce::Rectangle<float> area)
         const auto& a = profilePoints[(size_t) i];
         const auto& b = profilePoints[(size_t) i + 1];
 
-        const auto outer = getContour (a, i);
-        const auto inner = getContour (b, i + 1);
+        const auto outer = getContour (a);
+        const auto inner = getContour (b);
 
         juce::Path band;
         band.setUsingNonZeroWinding (false);
@@ -225,11 +220,11 @@ void MainComponent::drawPreview (juce::Graphics& g, juce::Rectangle<float> area)
         g.strokePath (band, juce::PathStrokeType (1.0f));
     }
 
-    const auto inner = getContour (profilePoints.back(), (int) profilePoints.size() - 1);
+    const auto inner = getContour (profilePoints.back());
 
     g.setColour (profilePoints.back().colour);
     g.fillRoundedRectangle (inner, getCornerRadius (profilePoints.back()));
 
     g.setColour (juce::Colours::white.withAlpha (0.12f));
-    g.drawRoundedRectangle (getContour (profilePoints.front(), 0), getCornerRadius (profilePoints.front()), 1.0f);
+    g.drawRoundedRectangle (getContour (profilePoints.front()), getCornerRadius (profilePoints.front()), 1.0f);
 }
