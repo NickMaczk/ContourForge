@@ -6,11 +6,25 @@ MainComponent::MainComponent()
 
     profilePoints =
     {
-        { 0.00f, 0.10f, juce::Colour::fromRGB (24, 24, 28) },
-        { 0.16f, 0.82f, juce::Colour::fromRGB (210, 214, 224) },
-        { 0.36f, 0.48f, juce::Colour::fromRGB (82, 86, 98) },
-        { 0.62f, 0.66f, juce::Colour::fromRGB (155, 160, 174) },
-        { 1.00f, 0.18f, juce::Colour::fromRGB (18, 18, 22) }
+        { 0.00f, 0.10f },
+        { 0.16f, 0.82f },
+        { 0.36f, 0.48f },
+        { 0.62f, 0.66f },
+        { 1.00f, 0.18f }
+    };
+
+    colourProfiles =
+    {
+        {
+            0.0f,
+            {
+                juce::Colour::fromRGB (24, 24, 28),
+                juce::Colour::fromRGB (210, 214, 224),
+                juce::Colour::fromRGB (82, 86, 98),
+                juce::Colour::fromRGB (155, 160, 174),
+                juce::Colour::fromRGB (18, 18, 22)
+            }
+        }
     };
 }
 
@@ -61,7 +75,7 @@ void MainComponent::mouseDown (const juce::MouseEvent& e)
 
             if (swatch.contains (mouse))
             {
-                profilePoints[(size_t) selectedPointIndex].colour = colours[(size_t) i];
+                setPointColour (selectedPointIndex, colours[(size_t) i]);
                 repaint();
                 return;
             }
@@ -82,6 +96,10 @@ void MainComponent::mouseDown (const juce::MouseEvent& e)
             if (e.mods.isPopupMenu() && i > 0 && i < (int) profilePoints.size() - 1)
             {
                 profilePoints.erase (profilePoints.begin() + i);
+
+                for (auto& colourProfile : colourProfiles)
+                    colourProfile.colours.erase (colourProfile.colours.begin() + i);
+
                 selectedPointIndex = -1;
                 repaint();
                 return;
@@ -141,10 +159,21 @@ void MainComponent::mouseDoubleClick (const juce::MouseEvent& e)
     if (profilePoints[(size_t) insertIndex].x - x < 0.025f)
         return;
 
-    auto newPoint = sampleProfileAt (x);
+    std::vector<juce::Colour> insertedColours;
+
+    for (int profileIndex = 0; profileIndex < (int) colourProfiles.size(); ++profileIndex)
+        insertedColours.push_back (sampleProfileAt (x, profileIndex).colour);
+
+    ProfilePoint newPoint;
+    newPoint.x = x;
     newPoint.y = y;
 
     profilePoints.insert (profilePoints.begin() + insertIndex, newPoint);
+
+    for (int profileIndex = 0; profileIndex < (int) colourProfiles.size(); ++profileIndex)
+        colourProfiles[(size_t) profileIndex].colours.insert (
+            colourProfiles[(size_t) profileIndex].colours.begin() + insertIndex,
+            insertedColours[(size_t) profileIndex]);
 
     selectedPointIndex = insertIndex;
     draggedPointIndex = insertIndex;
@@ -212,9 +241,12 @@ MainComponent::ProfilePoint MainComponent::screenToProfile (juce::Point<float> p
     return result;
 }
 
-MainComponent::ProfilePoint MainComponent::sampleProfileAt (float x) const
+MainComponent::SampledProfilePoint MainComponent::sampleProfileAt (float x, int colourProfileIndex) const
 {
     x = juce::jlimit (0.0f, 1.0f, x);
+
+    const auto safeProfileIndex = juce::jlimit (0, (int) colourProfiles.size() - 1, colourProfileIndex);
+    const auto& colours = colourProfiles[(size_t) safeProfileIndex].colours;
 
     for (int i = 0; i < (int) profilePoints.size() - 1; ++i)
     {
@@ -229,12 +261,47 @@ MainComponent::ProfilePoint MainComponent::sampleProfileAt (float x) const
             {
                 x,
                 juce::jmap (amount, a.y, b.y),
-                a.colour.interpolatedWith (b.colour, amount)
+                colours[(size_t) i].interpolatedWith (colours[(size_t) i + 1], amount)
             };
         }
     }
 
-    return profilePoints.back();
+    return
+    {
+        profilePoints.back().x,
+        profilePoints.back().y,
+        colours.back()
+    };
+}
+
+juce::Colour MainComponent::getPointColour (int pointIndex) const
+{
+    if (colourProfiles.empty())
+        return juce::Colours::white;
+
+    const auto safeProfileIndex = juce::jlimit (0, (int) colourProfiles.size() - 1, selectedColourProfileIndex);
+    const auto& colours = colourProfiles[(size_t) safeProfileIndex].colours;
+
+    if (colours.empty())
+        return juce::Colours::white;
+
+    const auto safePointIndex = juce::jlimit (0, (int) colours.size() - 1, pointIndex);
+    return colours[(size_t) safePointIndex];
+}
+
+void MainComponent::setPointColour (int pointIndex, juce::Colour colour)
+{
+    if (colourProfiles.empty())
+        return;
+
+    const auto safeProfileIndex = juce::jlimit (0, (int) colourProfiles.size() - 1, selectedColourProfileIndex);
+    auto& colours = colourProfiles[(size_t) safeProfileIndex].colours;
+
+    if (colours.empty())
+        return;
+
+    const auto safePointIndex = juce::jlimit (0, (int) colours.size() - 1, pointIndex);
+    colours[(size_t) safePointIndex] = colour;
 }
 
 std::vector<juce::Colour> MainComponent::getPaletteColours() const
@@ -290,7 +357,7 @@ void MainComponent::drawProfileEditor (juce::Graphics& g, juce::Rectangle<float>
         const auto isDragged = i == draggedPointIndex;
         const auto isSelected = i == selectedPointIndex;
 
-        g.setColour (profilePoints[(size_t) i].colour);
+        g.setColour (getPointColour (i));
         g.fillEllipse (pt.x - 7.0f, pt.y - 7.0f, 14.0f, 14.0f);
 
         g.setColour (juce::Colours::white.withAlpha ((isDragged || isSelected) ? 0.95f : 0.5f));
@@ -333,7 +400,7 @@ void MainComponent::drawColourPalette (juce::Graphics& g, juce::Rectangle<float>
         g.fillRoundedRectangle (swatch, 5.0f);
 
         const auto isActive = selectedPointIndex >= 0
-            && profilePoints[(size_t) selectedPointIndex].colour.getARGB() == colours[(size_t) i].getARGB();
+            && getPointColour (selectedPointIndex).getARGB() == colours[(size_t) i].getARGB();
 
         g.setColour (juce::Colours::white.withAlpha (isActive ? 0.95f : 0.25f));
         g.drawRoundedRectangle (swatch, 5.0f, isActive ? 2.0f : 1.0f);
@@ -354,7 +421,7 @@ void MainComponent::drawPreview (juce::Graphics& g, juce::Rectangle<float> area)
                 juce::Justification::left);
 
     auto shapeArea = area.reduced (70.0f, 82.0f);
-    auto getContour = [&] (const ProfilePoint& p)
+    auto getContour = [&] (const auto& p)
     {
         const auto scale = 1.0f - p.x;
 
@@ -363,7 +430,7 @@ void MainComponent::drawPreview (juce::Graphics& g, juce::Rectangle<float> area)
             juce::jmax (1.0f, shapeArea.getHeight() * scale));
     };
 
-    auto getCornerRadius = [] (const ProfilePoint& p)
+    auto getCornerRadius = [] (const auto& p)
     {
         return juce::jlimit (8.0f, 72.0f, 72.0f - p.x * 42.0f);
     };
@@ -375,8 +442,8 @@ void MainComponent::drawPreview (juce::Graphics& g, juce::Rectangle<float> area)
         const auto x0 = (float) i / (float) numBands;
         const auto x1 = (float) (i + 1) / (float) numBands;
 
-        const auto a = sampleProfileAt (x0);
-        const auto b = sampleProfileAt (x1);
+        const auto a = sampleProfileAt (x0, selectedColourProfileIndex);
+        const auto b = sampleProfileAt (x1, selectedColourProfileIndex);
 
         const auto outer = getContour (a);
         const auto inner = getContour (b);
@@ -406,7 +473,7 @@ void MainComponent::drawPreview (juce::Graphics& g, juce::Rectangle<float> area)
 
     const auto inner = getContour (profilePoints.back());
 
-    g.setColour (profilePoints.back().colour);
+    g.setColour (getPointColour ((int) profilePoints.size() - 1));
     g.fillRoundedRectangle (inner, getCornerRadius (profilePoints.back()));
 
     g.setColour (juce::Colours::white.withAlpha (0.12f));
