@@ -42,10 +42,19 @@ private:
         square
     };
 
+    enum class PreviewMode
+    {
+        heightMap,
+        ambientOcclusion
+    };
+
     std::vector<ProfilePoint> profilePoints;
     std::vector<ColourProfile> colourProfiles;
 
     PreviewShape previewShape = PreviewShape::circle;
+    PreviewMode previewMode = PreviewMode::heightMap;
+    float aoPropagation = 0.22f;
+
     bool autoShadeEnabled = true;
     juce::String statusText;
     juce::var memorySavedState;

@@ -155,11 +155,23 @@ void MainComponent::mouseDown (const juce::MouseEvent& e)
     }
 
     {
-        auto previewControls = getPreviewArea().reduced (18.0f).removeFromTop (24.0f).removeFromRight (160.0f);
+        auto previewControls = getPreviewArea().reduced (18.0f).removeFromTop (56.0f).removeFromRight (260.0f);
 
-        const auto circleButton = previewControls.removeFromLeft (72.0f);
-        previewControls.removeFromLeft (8.0f);
-        const auto squareButton = previewControls.removeFromLeft (80.0f);
+        auto shapeRow = previewControls.removeFromTop (24.0f);
+        previewControls.removeFromTop (8.0f);
+        auto modeRow = previewControls.removeFromTop (24.0f);
+
+        const auto circleButton = shapeRow.removeFromLeft (72.0f);
+        shapeRow.removeFromLeft (8.0f);
+        const auto squareButton = shapeRow.removeFromLeft (80.0f);
+
+        const auto heightButton = modeRow.removeFromLeft (72.0f);
+        modeRow.removeFromLeft (8.0f);
+        const auto aoButton = modeRow.removeFromLeft (48.0f);
+        modeRow.removeFromLeft (8.0f);
+        const auto aoMinusButton = modeRow.removeFromLeft (56.0f);
+        modeRow.removeFromLeft (8.0f);
+        const auto aoPlusButton = modeRow.removeFromLeft (56.0f);
 
         if (circleButton.contains (mouse))
         {
@@ -171,6 +183,36 @@ void MainComponent::mouseDown (const juce::MouseEvent& e)
         if (squareButton.contains (mouse))
         {
             previewShape = PreviewShape::square;
+            repaint();
+            return;
+        }
+
+        if (heightButton.contains (mouse))
+        {
+            previewMode = PreviewMode::heightMap;
+            repaint();
+            return;
+        }
+
+        if (aoButton.contains (mouse))
+        {
+            previewMode = PreviewMode::ambientOcclusion;
+            repaint();
+            return;
+        }
+
+        if (aoMinusButton.contains (mouse))
+        {
+            aoPropagation = juce::jlimit (0.04f, 0.80f, aoPropagation - 0.04f);
+            previewMode = PreviewMode::ambientOcclusion;
+            repaint();
+            return;
+        }
+
+        if (aoPlusButton.contains (mouse))
+        {
+            aoPropagation = juce::jlimit (0.04f, 0.80f, aoPropagation + 0.04f);
+            previewMode = PreviewMode::ambientOcclusion;
             repaint();
             return;
         }
@@ -443,6 +485,8 @@ juce::var MainComponent::createProjectState() const
 
     root->setProperty ("version", 1);
     root->setProperty ("previewShape", previewShape == PreviewShape::circle ? "circle" : "square");
+    root->setProperty ("previewMode", previewMode == PreviewMode::ambientOcclusion ? "ambientOcclusion" : "heightMap");
+    root->setProperty ("aoPropagation", aoPropagation);
     root->setProperty ("autoShadeEnabled", autoShadeEnabled);
     root->setProperty ("selectedColourProfileIndex", selectedColourProfileIndex);
 
@@ -549,6 +593,12 @@ bool MainComponent::applyProjectState (const juce::var& state)
     previewShape = root->getProperty ("previewShape").toString() == "square"
         ? PreviewShape::square
         : PreviewShape::circle;
+
+    previewMode = root->getProperty ("previewMode").toString() == "ambientOcclusion"
+        ? PreviewMode::ambientOcclusion
+        : PreviewMode::heightMap;
+
+    aoPropagation = juce::jlimit (0.04f, 0.80f, (float) (double) root->getProperty ("aoPropagation"));
 
     autoShadeEnabled = (bool) root->getProperty ("autoShadeEnabled");
 
@@ -756,11 +806,23 @@ void MainComponent::drawPreview (juce::Graphics& g, juce::Rectangle<float> area)
     g.drawText ("Shape preview", titleRow.removeFromLeft (280.0f),
                 juce::Justification::left);
 
-    auto previewControls = area.reduced (18.0f).removeFromTop (24.0f).removeFromRight (160.0f);
+    auto previewControls = area.reduced (18.0f).removeFromTop (56.0f).removeFromRight (260.0f);
 
-    const auto circleButton = previewControls.removeFromLeft (72.0f);
-    previewControls.removeFromLeft (8.0f);
-    const auto squareButton = previewControls.removeFromLeft (80.0f);
+    auto shapeRow = previewControls.removeFromTop (24.0f);
+    previewControls.removeFromTop (8.0f);
+    auto modeRow = previewControls.removeFromTop (24.0f);
+
+    const auto circleButton = shapeRow.removeFromLeft (72.0f);
+    shapeRow.removeFromLeft (8.0f);
+    const auto squareButton = shapeRow.removeFromLeft (80.0f);
+
+    const auto heightButton = modeRow.removeFromLeft (72.0f);
+    modeRow.removeFromLeft (8.0f);
+    const auto aoButton = modeRow.removeFromLeft (48.0f);
+    modeRow.removeFromLeft (8.0f);
+    const auto aoMinusButton = modeRow.removeFromLeft (56.0f);
+    modeRow.removeFromLeft (8.0f);
+    const auto aoPlusButton = modeRow.removeFromLeft (56.0f);
 
     auto drawShapeButton = [&] (juce::Rectangle<float> button, const juce::String& text, bool selected)
     {
@@ -777,6 +839,10 @@ void MainComponent::drawPreview (juce::Graphics& g, juce::Rectangle<float> area)
 
     drawShapeButton (circleButton, "Circle", previewShape == PreviewShape::circle);
     drawShapeButton (squareButton, "Square", previewShape == PreviewShape::square);
+    drawShapeButton (heightButton, "Height", previewMode == PreviewMode::heightMap);
+    drawShapeButton (aoButton, "AO", previewMode == PreviewMode::ambientOcclusion);
+    drawShapeButton (aoMinusButton, "AO-", false);
+    drawShapeButton (aoPlusButton, "AO+", false);
 
     auto shapeArea = area.reduced (84.0f, 92.0f);
     const auto side = juce::jmin (shapeArea.getWidth(), shapeArea.getHeight());
@@ -796,10 +862,51 @@ void MainComponent::drawPreview (juce::Graphics& g, juce::Rectangle<float> area)
         return angle;
     };
 
-    auto colourAt = [&] (float profileX, float)
+    auto heightValueAt = [&] (float profileX)
     {
         const auto sample = sampleProfileAt (profileX, 0);
-        const auto value = juce::jlimit (0.0f, 1.0f, 0.18f + sample.y * 0.70f);
+        return juce::jlimit (0.0f, 1.0f, sample.y);
+    };
+
+    auto ambientOcclusionAt = [&] (float profileX)
+    {
+        const auto current = heightValueAt (profileX);
+
+        const auto radius = aoPropagation;
+        constexpr int sampleCount = 18;
+
+        float occlusion = 0.0f;
+
+        for (int i = 1; i <= sampleCount; ++i)
+        {
+            const auto step = radius * (float) i / (float) sampleCount;
+
+            const auto leftX = juce::jlimit (0.0f, 1.0f, profileX - step);
+            const auto rightX = juce::jlimit (0.0f, 1.0f, profileX + step);
+
+            const auto leftHeight = heightValueAt (leftX);
+            const auto rightHeight = heightValueAt (rightX);
+
+            const auto distanceFalloff = 1.0f - (float) i / (float) sampleCount;
+
+            occlusion += juce::jmax (0.0f, leftHeight - current) * distanceFalloff;
+            occlusion += juce::jmax (0.0f, rightHeight - current) * distanceFalloff;
+        }
+
+        occlusion = juce::jlimit (0.0f, 1.0f, occlusion * 0.42f);
+
+        return 1.0f - occlusion;
+    };
+
+    auto colourAt = [&] (float profileX, float)
+    {
+        if (previewMode == PreviewMode::ambientOcclusion)
+        {
+            const auto value = ambientOcclusionAt (profileX);
+            return juce::Colour::fromFloatRGBA (value, value, value, 1.0f);
+        }
+
+        const auto value = juce::jlimit (0.0f, 1.0f, 0.12f + heightValueAt (profileX) * 0.84f);
         return juce::Colour::fromFloatRGBA (value, value, value, 1.0f);
     };
 
@@ -889,7 +996,6 @@ void MainComponent::drawPreview (juce::Graphics& g, juce::Rectangle<float> area)
             if (distance <= 0.0001f)
             {
                 auto colour = colourAt (1.0f, 0.0f);
-                colour = applyAutoShade (colour, 1.0f);
                 previewImage.setPixelAt (x, y, colour);
                 continue;
             }
@@ -920,7 +1026,6 @@ void MainComponent::drawPreview (juce::Graphics& g, juce::Rectangle<float> area)
             const auto profileX = juce::jlimit (0.0f, 1.0f, 1.0f - distance / edgeDistance);
 
             auto colour = colourAt (profileX, angleDeg);
-            colour = applyAutoShade (colour, profileX);
 
             previewImage.setPixelAt (x, y, colour);
         }
