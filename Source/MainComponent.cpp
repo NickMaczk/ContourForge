@@ -141,11 +141,13 @@ void MainComponent::mouseDown (const juce::MouseEvent& e)
     }
 
     {
-        auto previewControls = getPreviewArea().reduced (18.0f).removeFromTop (56.0f).removeFromRight (630.0f);
+        auto previewControls = getPreviewArea().reduced (18.0f).removeFromTop (88.0f).removeFromRight (420.0f);
 
         auto shapeRow = previewControls.removeFromTop (24.0f);
         previewControls.removeFromTop (8.0f);
         auto modeRow = previewControls.removeFromTop (24.0f);
+        previewControls.removeFromTop (8.0f);
+        auto adjustRow = previewControls.removeFromTop (24.0f);
 
         const auto circleButton = shapeRow.removeFromLeft (72.0f);
         shapeRow.removeFromLeft (8.0f);
@@ -164,14 +166,18 @@ void MainComponent::mouseDown (const juce::MouseEvent& e)
         const auto cavityButton = modeRow.removeFromLeft (62.0f);
         modeRow.removeFromLeft (6.0f);
         const auto aoButton = modeRow.removeFromLeft (42.0f);
-        modeRow.removeFromLeft (6.0f);
-        const auto rangeMinusButton = modeRow.removeFromLeft (48.0f);
-        modeRow.removeFromLeft (6.0f);
-        const auto rangePlusButton = modeRow.removeFromLeft (48.0f);
-        modeRow.removeFromLeft (6.0f);
-        const auto glossMinusButton = modeRow.removeFromLeft (58.0f);
-        modeRow.removeFromLeft (6.0f);
-        const auto glossPlusButton = modeRow.removeFromLeft (58.0f);
+
+        const auto rangeMinusButton = adjustRow.removeFromLeft (58.0f);
+        adjustRow.removeFromLeft (6.0f);
+        const auto rangePlusButton = adjustRow.removeFromLeft (58.0f);
+        adjustRow.removeFromLeft (6.0f);
+        const auto glossMinusButton = adjustRow.removeFromLeft (62.0f);
+        adjustRow.removeFromLeft (6.0f);
+        const auto glossPlusButton = adjustRow.removeFromLeft (62.0f);
+        adjustRow.removeFromLeft (6.0f);
+        const auto elevationMinusButton = adjustRow.removeFromLeft (58.0f);
+        adjustRow.removeFromLeft (6.0f);
+        const auto elevationPlusButton = adjustRow.removeFromLeft (58.0f);
 
         if (circleButton.contains (mouse))
         {
@@ -302,7 +308,7 @@ void MainComponent::mouseDown (const juce::MouseEvent& e)
 
         if (glossMinusButton.contains (mouse))
         {
-            glossAmount = juce::jlimit (0.0f, 1.0f, glossAmount - 0.08f);
+            glossAmount = juce::jlimit (0.0f, 2.0f, glossAmount - 0.10f);
             previewMode = PreviewMode::material;
             repaint();
             return;
@@ -310,7 +316,39 @@ void MainComponent::mouseDown (const juce::MouseEvent& e)
 
         if (glossPlusButton.contains (mouse))
         {
-            glossAmount = juce::jlimit (0.0f, 1.0f, glossAmount + 0.08f);
+            glossAmount = juce::jlimit (0.0f, 2.0f, glossAmount + 0.10f);
+            previewMode = PreviewMode::material;
+            repaint();
+            return;
+        }
+
+        if (glossMinusButton.contains (mouse))
+        {
+            glossAmount = juce::jlimit (0.0f, 2.0f, glossAmount - 0.10f);
+            previewMode = PreviewMode::material;
+            repaint();
+            return;
+        }
+
+        if (glossPlusButton.contains (mouse))
+        {
+            glossAmount = juce::jlimit (0.0f, 2.0f, glossAmount + 0.10f);
+            previewMode = PreviewMode::material;
+            repaint();
+            return;
+        }
+
+        if (elevationMinusButton.contains (mouse))
+        {
+            lightElevation = juce::jlimit (0.10f, 1.0f, lightElevation - 0.06f);
+            previewMode = PreviewMode::material;
+            repaint();
+            return;
+        }
+
+        if (elevationPlusButton.contains (mouse))
+        {
+            lightElevation = juce::jlimit (0.10f, 1.0f, lightElevation + 0.06f);
             previewMode = PreviewMode::material;
             repaint();
             return;
@@ -511,6 +549,7 @@ juce::var MainComponent::createProjectState() const
     root->setProperty ("ambientOcclusionPropagation", ambientOcclusionPropagation);
     root->setProperty ("baseColour", baseColour.toDisplayString (true));
     root->setProperty ("lightAngleDeg", lightAngleDeg);
+    root->setProperty ("lightElevation", lightElevation);
     root->setProperty ("glossAmount", glossAmount);
     root->setProperty ("previewQualityDivisor", previewQualityDivisor);
 
@@ -604,7 +643,7 @@ bool MainComponent::applyProjectState (const juce::var& state)
     const auto loadedGlossAmount = root->getProperty ("glossAmount");
 
     if (! loadedGlossAmount.isVoid())
-        glossAmount = juce::jlimit (0.0f, 1.0f, (float) (double) loadedGlossAmount);
+        glossAmount = juce::jlimit (0.0f, 2.0f, (float) (double) loadedGlossAmount);
 
     const auto loadedPreviewQualityDivisor = (int) root->getProperty ("previewQualityDivisor");
 
@@ -707,11 +746,13 @@ void MainComponent::drawPreview (juce::Graphics& g, juce::Rectangle<float> area)
     g.drawText ("Shape preview", titleRow.removeFromLeft (280.0f),
                 juce::Justification::left);
 
-    auto previewControls = area.reduced (18.0f).removeFromTop (56.0f).removeFromRight (630.0f);
+    auto previewControls = area.reduced (18.0f).removeFromTop (88.0f).removeFromRight (420.0f);
 
     auto shapeRow = previewControls.removeFromTop (24.0f);
     previewControls.removeFromTop (8.0f);
     auto modeRow = previewControls.removeFromTop (24.0f);
+    previewControls.removeFromTop (8.0f);
+    auto adjustRow = previewControls.removeFromTop (24.0f);
 
     const auto circleButton = shapeRow.removeFromLeft (72.0f);
     shapeRow.removeFromLeft (8.0f);
@@ -730,14 +771,18 @@ void MainComponent::drawPreview (juce::Graphics& g, juce::Rectangle<float> area)
     const auto cavityButton = modeRow.removeFromLeft (62.0f);
     modeRow.removeFromLeft (6.0f);
     const auto aoButton = modeRow.removeFromLeft (42.0f);
-    modeRow.removeFromLeft (6.0f);
-    const auto rangeMinusButton = modeRow.removeFromLeft (48.0f);
-    modeRow.removeFromLeft (6.0f);
-    const auto rangePlusButton = modeRow.removeFromLeft (48.0f);
-    modeRow.removeFromLeft (6.0f);
-    const auto glossMinusButton = modeRow.removeFromLeft (58.0f);
-    modeRow.removeFromLeft (6.0f);
-    const auto glossPlusButton = modeRow.removeFromLeft (58.0f);
+
+    const auto rangeMinusButton = adjustRow.removeFromLeft (58.0f);
+    adjustRow.removeFromLeft (6.0f);
+    const auto rangePlusButton = adjustRow.removeFromLeft (58.0f);
+    adjustRow.removeFromLeft (6.0f);
+    const auto glossMinusButton = adjustRow.removeFromLeft (62.0f);
+    adjustRow.removeFromLeft (6.0f);
+    const auto glossPlusButton = adjustRow.removeFromLeft (62.0f);
+    adjustRow.removeFromLeft (6.0f);
+    const auto elevationMinusButton = adjustRow.removeFromLeft (58.0f);
+    adjustRow.removeFromLeft (6.0f);
+    const auto elevationPlusButton = adjustRow.removeFromLeft (58.0f);
 
     auto drawShapeButton = [&] (juce::Rectangle<float> button, const juce::String& text, bool selected)
     {
@@ -783,8 +828,10 @@ void MainComponent::drawPreview (juce::Graphics& g, juce::Rectangle<float> area)
 
     drawShapeButton (glossMinusButton, "Gloss-", false);
     drawShapeButton (glossPlusButton, "Gloss+", false);
+    drawShapeButton (elevationMinusButton, "Elev-", false);
+    drawShapeButton (elevationPlusButton, "Elev+", false);
 
-    auto shapeArea = area.reduced (84.0f, 92.0f);
+    auto shapeArea = area.reduced (84.0f, 124.0f);
     const auto side = juce::jmin (shapeArea.getWidth(), shapeArea.getHeight());
     shapeArea = shapeArea.withSizeKeepingCentre (side, side);
 
@@ -1041,9 +1088,11 @@ void MainComponent::drawPreview (juce::Graphics& g, juce::Rectangle<float> area)
 
         const auto lightRadians = (lightAngleDeg - 90.0f) * juce::MathConstants<float>::pi / 180.0f;
 
-        const auto lx = std::cos (lightRadians) * 0.64f;
-        const auto ly = std::sin (lightRadians) * 0.64f;
-        constexpr float lz = 0.72f;
+        const auto lz = juce::jmap (lightElevation, 0.10f, 1.0f, 0.22f, 0.96f);
+        const auto sideAmount = std::sqrt (juce::jmax (0.0f, 1.0f - lz * lz));
+
+        const auto lx = std::cos (lightRadians) * sideAmount;
+        const auto ly = std::sin (lightRadians) * sideAmount;
 
         const auto lightLength = std::sqrt (lx * lx + ly * ly + lz * lz);
         const auto dot = juce::jlimit (0.0f, 1.0f, (nx * lx + ny * ly + nz * lz) / lightLength);
@@ -1054,8 +1103,8 @@ void MainComponent::drawPreview (juce::Graphics& g, juce::Rectangle<float> area)
         const auto diffuse = 0.34f + dot * 0.78f;
 
         const auto shade = juce::jlimit (0.0f, 1.35f, diffuse * heightLift * cavityShade * aoShade);
-        const auto specPower = juce::jmap (glossAmount, 0.0f, 1.0f, 10.0f, 76.0f);
-        const auto specStrength = juce::jmap (glossAmount, 0.0f, 1.0f, 0.02f, 0.42f);
+        const auto specPower = juce::jmap (glossAmount, 0.0f, 2.0f, 8.0f, 170.0f);
+        const auto specStrength = juce::jmap (glossAmount, 0.0f, 2.0f, 0.02f, 1.15f);
         const auto spec = std::pow (dot, specPower) * specStrength;
 
         return juce::Colour::fromFloatRGBA (
