@@ -141,7 +141,7 @@ void MainComponent::mouseDown (const juce::MouseEvent& e)
     }
 
     {
-        auto previewControls = getPreviewArea().reduced (18.0f).removeFromTop (56.0f).removeFromRight (500.0f);
+        auto previewControls = getPreviewArea().reduced (18.0f).removeFromTop (56.0f).removeFromRight (630.0f);
 
         auto shapeRow = previewControls.removeFromTop (24.0f);
         previewControls.removeFromTop (8.0f);
@@ -168,6 +168,10 @@ void MainComponent::mouseDown (const juce::MouseEvent& e)
         const auto rangeMinusButton = modeRow.removeFromLeft (48.0f);
         modeRow.removeFromLeft (6.0f);
         const auto rangePlusButton = modeRow.removeFromLeft (48.0f);
+        modeRow.removeFromLeft (6.0f);
+        const auto glossMinusButton = modeRow.removeFromLeft (58.0f);
+        modeRow.removeFromLeft (6.0f);
+        const auto glossPlusButton = modeRow.removeFromLeft (58.0f);
 
         if (circleButton.contains (mouse))
         {
@@ -292,6 +296,22 @@ void MainComponent::mouseDown (const juce::MouseEvent& e)
             while (lightAngleDeg >= 360.0f)
                 lightAngleDeg -= 360.0f;
 
+            repaint();
+            return;
+        }
+
+        if (glossMinusButton.contains (mouse))
+        {
+            glossAmount = juce::jlimit (0.0f, 1.0f, glossAmount - 0.08f);
+            previewMode = PreviewMode::material;
+            repaint();
+            return;
+        }
+
+        if (glossPlusButton.contains (mouse))
+        {
+            glossAmount = juce::jlimit (0.0f, 1.0f, glossAmount + 0.08f);
+            previewMode = PreviewMode::material;
             repaint();
             return;
         }
@@ -491,6 +511,7 @@ juce::var MainComponent::createProjectState() const
     root->setProperty ("ambientOcclusionPropagation", ambientOcclusionPropagation);
     root->setProperty ("baseColour", baseColour.toDisplayString (true));
     root->setProperty ("lightAngleDeg", lightAngleDeg);
+    root->setProperty ("glossAmount", glossAmount);
     root->setProperty ("previewQualityDivisor", previewQualityDivisor);
 
     juce::Array<juce::var> points;
@@ -579,6 +600,11 @@ bool MainComponent::applyProjectState (const juce::var& state)
 
     while (lightAngleDeg >= 360.0f)
         lightAngleDeg -= 360.0f;
+
+    const auto loadedGlossAmount = root->getProperty ("glossAmount");
+
+    if (! loadedGlossAmount.isVoid())
+        glossAmount = juce::jlimit (0.0f, 1.0f, (float) (double) loadedGlossAmount);
 
     const auto loadedPreviewQualityDivisor = (int) root->getProperty ("previewQualityDivisor");
 
@@ -681,7 +707,7 @@ void MainComponent::drawPreview (juce::Graphics& g, juce::Rectangle<float> area)
     g.drawText ("Shape preview", titleRow.removeFromLeft (280.0f),
                 juce::Justification::left);
 
-    auto previewControls = area.reduced (18.0f).removeFromTop (56.0f).removeFromRight (500.0f);
+    auto previewControls = area.reduced (18.0f).removeFromTop (56.0f).removeFromRight (630.0f);
 
     auto shapeRow = previewControls.removeFromTop (24.0f);
     previewControls.removeFromTop (8.0f);
@@ -708,6 +734,10 @@ void MainComponent::drawPreview (juce::Graphics& g, juce::Rectangle<float> area)
     const auto rangeMinusButton = modeRow.removeFromLeft (48.0f);
     modeRow.removeFromLeft (6.0f);
     const auto rangePlusButton = modeRow.removeFromLeft (48.0f);
+    modeRow.removeFromLeft (6.0f);
+    const auto glossMinusButton = modeRow.removeFromLeft (58.0f);
+    modeRow.removeFromLeft (6.0f);
+    const auto glossPlusButton = modeRow.removeFromLeft (58.0f);
 
     auto drawShapeButton = [&] (juce::Rectangle<float> button, const juce::String& text, bool selected)
     {
@@ -750,6 +780,9 @@ void MainComponent::drawPreview (juce::Graphics& g, juce::Rectangle<float> area)
 
     drawShapeButton (rangeMinusButton, leftAdjustText, false);
     drawShapeButton (rangePlusButton, rightAdjustText, false);
+
+    drawShapeButton (glossMinusButton, "Gloss-", false);
+    drawShapeButton (glossPlusButton, "Gloss+", false);
 
     auto shapeArea = area.reduced (84.0f, 92.0f);
     const auto side = juce::jmin (shapeArea.getWidth(), shapeArea.getHeight());
@@ -1021,7 +1054,9 @@ void MainComponent::drawPreview (juce::Graphics& g, juce::Rectangle<float> area)
         const auto diffuse = 0.34f + dot * 0.78f;
 
         const auto shade = juce::jlimit (0.0f, 1.35f, diffuse * heightLift * cavityShade * aoShade);
-        const auto spec = std::pow (dot, 34.0f) * 0.18f;
+        const auto specPower = juce::jmap (glossAmount, 0.0f, 1.0f, 10.0f, 76.0f);
+        const auto specStrength = juce::jmap (glossAmount, 0.0f, 1.0f, 0.02f, 0.42f);
+        const auto spec = std::pow (dot, specPower) * specStrength;
 
         return juce::Colour::fromFloatRGBA (
             juce::jlimit (0.0f, 1.0f, baseColour.getFloatRed()   * shade + spec),

@@ -52,6 +52,7 @@ private:
     float ambientOcclusionPropagation = 0.18f;
     juce::Colour baseColour = juce::Colour::fromRGB (170, 146, 105);
     float lightAngleDeg = 225.0f;
+    float glossAmount = 0.45f;
     int previewQualityDivisor = 2;
 
     juce::String statusText;
