@@ -93,14 +93,18 @@ void MainComponent::mouseDown (const juce::MouseEvent& e)
 
     if (getSaveButtonArea().contains (mouse))
     {
-        statusText = "Save clicked";
+        memorySavedState = createProjectState();
+        statusText = "Saved in memory";
         repaint();
         return;
     }
 
     if (getLoadButtonArea().contains (mouse))
     {
-        statusText = "Load clicked";
+        statusText = applyProjectState (memorySavedState)
+            ? "Loaded from memory"
+            : "Nothing saved yet";
+
         repaint();
         return;
     }
@@ -612,6 +616,133 @@ void MainComponent::bakeAutoShadeIntoSelectedProfile()
         bakedColours[(size_t) i] = getAutoShadedPointColour (i, safeProfileIndex);
 
     colourProfiles[(size_t) safeProfileIndex].colours = bakedColours;
+}
+
+juce::var MainComponent::createProjectState() const
+{
+    auto* root = new juce::DynamicObject();
+
+    root->setProperty ("version", 1);
+    root->setProperty ("previewShape", previewShape == PreviewShape::circle ? "circle" : "square");
+    root->setProperty ("autoShadeEnabled", autoShadeEnabled);
+    root->setProperty ("selectedColourProfileIndex", selectedColourProfileIndex);
+
+    juce::Array<juce::var> points;
+
+    for (const auto& point : profilePoints)
+    {
+        auto* pointObject = new juce::DynamicObject();
+        pointObject->setProperty ("x", point.x);
+        pointObject->setProperty ("y", point.y);
+        points.add (juce::var (pointObject));
+    }
+
+    root->setProperty ("profilePoints", juce::var (points));
+
+    juce::Array<juce::var> profiles;
+
+    for (const auto& profile : colourProfiles)
+    {
+        auto* profileObject = new juce::DynamicObject();
+        profileObject->setProperty ("angleDeg", profile.angleDeg);
+
+        juce::Array<juce::var> colours;
+
+        for (const auto& colour : profile.colours)
+            colours.add (colour.toDisplayString (true));
+
+        profileObject->setProperty ("colours", juce::var (colours));
+        profiles.add (juce::var (profileObject));
+    }
+
+    root->setProperty ("colourProfiles", juce::var (profiles));
+
+    return juce::var (root);
+}
+
+bool MainComponent::applyProjectState (const juce::var& state)
+{
+    auto* root = state.getDynamicObject();
+
+    if (root == nullptr)
+        return false;
+
+    auto* pointsArray = root->getProperty ("profilePoints").getArray();
+    auto* profilesArray = root->getProperty ("colourProfiles").getArray();
+
+    if (pointsArray == nullptr || profilesArray == nullptr)
+        return false;
+
+    if (pointsArray->size() < 2 || profilesArray->isEmpty())
+        return false;
+
+    std::vector<ProfilePoint> loadedPoints;
+
+    for (const auto& pointVar : *pointsArray)
+    {
+        auto* pointObject = pointVar.getDynamicObject();
+
+        if (pointObject == nullptr)
+            return false;
+
+        ProfilePoint point;
+        point.x = juce::jlimit (0.0f, 1.0f, (float) (double) pointObject->getProperty ("x"));
+        point.y = juce::jlimit (0.0f, 1.0f, (float) (double) pointObject->getProperty ("y"));
+
+        loadedPoints.push_back (point);
+    }
+
+    loadedPoints.front().x = 0.0f;
+    loadedPoints.back().x = 1.0f;
+
+    std::vector<ColourProfile> loadedProfiles;
+
+    for (const auto& profileVar : *profilesArray)
+    {
+        auto* profileObject = profileVar.getDynamicObject();
+
+        if (profileObject == nullptr)
+            return false;
+
+        auto* coloursArray = profileObject->getProperty ("colours").getArray();
+
+        if (coloursArray == nullptr || coloursArray->size() != (int) loadedPoints.size())
+            return false;
+
+        ColourProfile profile;
+        profile.angleDeg = (float) (double) profileObject->getProperty ("angleDeg");
+
+        while (profile.angleDeg < 0.0f)
+            profile.angleDeg += 360.0f;
+
+        while (profile.angleDeg >= 360.0f)
+            profile.angleDeg -= 360.0f;
+
+        for (const auto& colourVar : *coloursArray)
+            profile.colours.push_back (juce::Colour::fromString (colourVar.toString()));
+
+        loadedProfiles.push_back (profile);
+    }
+
+    profilePoints = std::move (loadedPoints);
+    colourProfiles = std::move (loadedProfiles);
+
+    previewShape = root->getProperty ("previewShape").toString() == "square"
+        ? PreviewShape::square
+        : PreviewShape::circle;
+
+    autoShadeEnabled = (bool) root->getProperty ("autoShadeEnabled");
+
+    selectedColourProfileIndex = juce::jlimit (
+        0,
+        (int) colourProfiles.size() - 1,
+        (int) root->getProperty ("selectedColourProfileIndex"));
+
+    selectedPointIndex = -1;
+    draggedPointIndex = -1;
+    draggedColourProfileIndex = -1;
+
+    return true;
 }
 
 std::vector<juce::Colour> MainComponent::getPaletteColours() const

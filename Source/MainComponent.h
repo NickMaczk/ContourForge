@@ -48,6 +48,7 @@ private:
     PreviewShape previewShape = PreviewShape::circle;
     bool autoShadeEnabled = true;
     juce::String statusText;
+    juce::var memorySavedState;
 
     int selectedColourProfileIndex = 0;
     int draggedColourProfileIndex = -1;
@@ -69,6 +70,9 @@ private:
     void setPointColour (int pointIndex, juce::Colour colour);
     juce::Colour getAutoShadedPointColour (int pointIndex, int colourProfileIndex) const;
     void bakeAutoShadeIntoSelectedProfile();
+
+    juce::var createProjectState() const;
+    bool applyProjectState (const juce::var& state);
 
     std::vector<juce::Colour> getPaletteColours() const;
 
