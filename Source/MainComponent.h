@@ -38,6 +38,7 @@ private:
     enum class PreviewMode
     {
         heightMap,
+        normalMap,
         cavity,
         ambientOcclusion
     };
