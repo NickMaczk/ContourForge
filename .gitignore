@@ -52,3 +52,6 @@ xcuserdata/
 *.log
 *.tmp
 *.bak
+
+# Editor backup files
+*~
