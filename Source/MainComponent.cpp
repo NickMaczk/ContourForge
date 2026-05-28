@@ -12,20 +12,6 @@ MainComponent::MainComponent()
         { 0.62f, 0.66f },
         { 1.00f, 0.18f }
     };
-
-    colourProfiles =
-    {
-        {
-            0.0f,
-            {
-                juce::Colour::fromRGB (24, 24, 28),
-                juce::Colour::fromRGB (210, 214, 224),
-                juce::Colour::fromRGB (82, 86, 98),
-                juce::Colour::fromRGB (155, 160, 174),
-                juce::Colour::fromRGB (18, 18, 22)
-            }
-        }
-    };
 }
 
 MainComponent::~MainComponent() = default;
@@ -322,19 +308,6 @@ juce::Rectangle<float> MainComponent::getPreviewArea() const
     return r.reduced (18.0f, 12.0f);
 }
 
-juce::Rectangle<float> MainComponent::getColourProfileBarArea() const
-{
-    auto area = getProfileArea();
-    area.removeFromBottom (64.0f);
-    return area.removeFromBottom (64.0f).reduced (18.0f, 4.0f);
-}
-
-juce::Rectangle<float> MainComponent::getColourPaletteArea() const
-{
-    auto area = getProfileArea();
-    return area.removeFromBottom (64.0f).reduced (18.0f, 8.0f);
-}
-
 juce::Point<float> MainComponent::profileToScreen (const ProfilePoint& p, juce::Rectangle<float> area) const
 {
     auto graph = area;
@@ -379,12 +352,9 @@ MainComponent::ProfilePoint MainComponent::screenToProfile (juce::Point<float> p
     return result;
 }
 
-MainComponent::SampledProfilePoint MainComponent::sampleProfileAt (float x, int colourProfileIndex) const
+MainComponent::SampledProfilePoint MainComponent::sampleProfileAt (float x) const
 {
     x = juce::jlimit (0.0f, 1.0f, x);
-
-    const auto safeProfileIndex = juce::jlimit (0, (int) colourProfiles.size() - 1, colourProfileIndex);
-    const auto& colours = colourProfiles[(size_t) safeProfileIndex].colours;
 
     for (int i = 0; i < (int) profilePoints.size() - 1; ++i)
     {
@@ -398,8 +368,7 @@ MainComponent::SampledProfilePoint MainComponent::sampleProfileAt (float x, int 
             return
             {
                 x,
-                juce::jmap (amount, a.y, b.y),
-                colours[(size_t) i].interpolatedWith (colours[(size_t) i + 1], amount)
+                juce::jmap (amount, a.y, b.y)
             };
         }
     }
@@ -407,88 +376,18 @@ MainComponent::SampledProfilePoint MainComponent::sampleProfileAt (float x, int 
     return
     {
         profilePoints.back().x,
-        profilePoints.back().y,
-        colours.back()
+        profilePoints.back().y
     };
-}
-
-juce::Colour MainComponent::getPointColour (int pointIndex) const
-{
-    if (colourProfiles.empty())
-        return juce::Colours::white;
-
-    const auto safeProfileIndex = juce::jlimit (0, (int) colourProfiles.size() - 1, selectedColourProfileIndex);
-    const auto& colours = colourProfiles[(size_t) safeProfileIndex].colours;
-
-    if (colours.empty())
-        return juce::Colours::white;
-
-    const auto safePointIndex = juce::jlimit (0, (int) colours.size() - 1, pointIndex);
-    return colours[(size_t) safePointIndex];
-}
-
-void MainComponent::setPointColour (int pointIndex, juce::Colour colour)
-{
-    if (colourProfiles.empty())
-        return;
-
-    const auto safeProfileIndex = juce::jlimit (0, (int) colourProfiles.size() - 1, selectedColourProfileIndex);
-    auto& colours = colourProfiles[(size_t) safeProfileIndex].colours;
-
-    if (colours.empty())
-        return;
-
-    const auto safePointIndex = juce::jlimit (0, (int) colours.size() - 1, pointIndex);
-    colours[(size_t) safePointIndex] = colour;
-}
-
-juce::Colour MainComponent::getAutoShadedPointColour (int pointIndex, int colourProfileIndex) const
-{
-    const auto baseColour = colourProfiles[(size_t) colourProfileIndex].colours[(size_t) pointIndex];
-
-    const auto current = profilePoints[(size_t) pointIndex];
-
-    const auto previousIndex = juce::jmax (0, pointIndex - 1);
-    const auto nextIndex = juce::jmin ((int) profilePoints.size() - 1, pointIndex + 1);
-
-    const auto previous = profilePoints[(size_t) previousIndex];
-    const auto next = profilePoints[(size_t) nextIndex];
-
-    const auto localSlope = (next.y - previous.y) * 0.5f;
-    const auto heightTint = (current.y - 0.5f) * 0.18f;
-    const auto slopeTint = localSlope * 0.32f;
-    const auto tint = juce::jlimit (-0.35f, 0.35f, heightTint + slopeTint);
-
-    if (tint >= 0.0f)
-        return baseColour.interpolatedWith (juce::Colours::white, tint);
-
-    return baseColour.interpolatedWith (juce::Colours::black, -tint);
-}
-
-void MainComponent::bakeAutoShadeIntoSelectedProfile()
-{
-    if (colourProfiles.empty())
-        return;
-
-    const auto safeProfileIndex = juce::jlimit (0, (int) colourProfiles.size() - 1, selectedColourProfileIndex);
-    auto bakedColours = colourProfiles[(size_t) safeProfileIndex].colours;
-
-    for (int i = 0; i < (int) bakedColours.size(); ++i)
-        bakedColours[(size_t) i] = getAutoShadedPointColour (i, safeProfileIndex);
-
-    colourProfiles[(size_t) safeProfileIndex].colours = bakedColours;
 }
 
 juce::var MainComponent::createProjectState() const
 {
     auto* root = new juce::DynamicObject();
 
-    root->setProperty ("version", 1);
+    root->setProperty ("version", 2);
     root->setProperty ("previewShape", previewShape == PreviewShape::circle ? "circle" : "square");
     root->setProperty ("previewMode", previewMode == PreviewMode::ambientOcclusion ? "ambientOcclusion" : "heightMap");
     root->setProperty ("aoPropagation", aoPropagation);
-    root->setProperty ("autoShadeEnabled", autoShadeEnabled);
-    root->setProperty ("selectedColourProfileIndex", selectedColourProfileIndex);
 
     juce::Array<juce::var> points;
 
@@ -502,24 +401,6 @@ juce::var MainComponent::createProjectState() const
 
     root->setProperty ("profilePoints", juce::var (points));
 
-    juce::Array<juce::var> profiles;
-
-    for (const auto& profile : colourProfiles)
-    {
-        auto* profileObject = new juce::DynamicObject();
-        profileObject->setProperty ("angleDeg", profile.angleDeg);
-
-        juce::Array<juce::var> colours;
-
-        for (const auto& colour : profile.colours)
-            colours.add (colour.toDisplayString (true));
-
-        profileObject->setProperty ("colours", juce::var (colours));
-        profiles.add (juce::var (profileObject));
-    }
-
-    root->setProperty ("colourProfiles", juce::var (profiles));
-
     return juce::var (root);
 }
 
@@ -531,12 +412,8 @@ bool MainComponent::applyProjectState (const juce::var& state)
         return false;
 
     auto* pointsArray = root->getProperty ("profilePoints").getArray();
-    auto* profilesArray = root->getProperty ("colourProfiles").getArray();
 
-    if (pointsArray == nullptr || profilesArray == nullptr)
-        return false;
-
-    if (pointsArray->size() < 2 || profilesArray->isEmpty())
+    if (pointsArray == nullptr || pointsArray->size() < 2)
         return false;
 
     std::vector<ProfilePoint> loadedPoints;
@@ -558,37 +435,7 @@ bool MainComponent::applyProjectState (const juce::var& state)
     loadedPoints.front().x = 0.0f;
     loadedPoints.back().x = 1.0f;
 
-    std::vector<ColourProfile> loadedProfiles;
-
-    for (const auto& profileVar : *profilesArray)
-    {
-        auto* profileObject = profileVar.getDynamicObject();
-
-        if (profileObject == nullptr)
-            return false;
-
-        auto* coloursArray = profileObject->getProperty ("colours").getArray();
-
-        if (coloursArray == nullptr || coloursArray->size() != (int) loadedPoints.size())
-            return false;
-
-        ColourProfile profile;
-        profile.angleDeg = (float) (double) profileObject->getProperty ("angleDeg");
-
-        while (profile.angleDeg < 0.0f)
-            profile.angleDeg += 360.0f;
-
-        while (profile.angleDeg >= 360.0f)
-            profile.angleDeg -= 360.0f;
-
-        for (const auto& colourVar : *coloursArray)
-            profile.colours.push_back (juce::Colour::fromString (colourVar.toString()));
-
-        loadedProfiles.push_back (profile);
-    }
-
     profilePoints = std::move (loadedPoints);
-    colourProfiles = std::move (loadedProfiles);
 
     previewShape = root->getProperty ("previewShape").toString() == "square"
         ? PreviewShape::square
@@ -600,16 +447,8 @@ bool MainComponent::applyProjectState (const juce::var& state)
 
     aoPropagation = juce::jlimit (0.04f, 0.80f, (float) (double) root->getProperty ("aoPropagation"));
 
-    autoShadeEnabled = (bool) root->getProperty ("autoShadeEnabled");
-
-    selectedColourProfileIndex = juce::jlimit (
-        0,
-        (int) colourProfiles.size() - 1,
-        (int) root->getProperty ("selectedColourProfileIndex"));
-
     selectedPointIndex = -1;
     draggedPointIndex = -1;
-    draggedColourProfileIndex = -1;
 
     return true;
 }
@@ -634,21 +473,6 @@ bool MainComponent::loadProjectFromFile (const juce::File& file)
         return false;
 
     return applyProjectState (parsed);
-}
-
-std::vector<juce::Colour> MainComponent::getPaletteColours() const
-{
-    return
-    {
-        juce::Colour::fromRGB (16, 16, 18),
-        juce::Colour::fromRGB (42, 43, 48),
-        juce::Colour::fromRGB (85, 88, 98),
-        juce::Colour::fromRGB (140, 145, 158),
-        juce::Colour::fromRGB (220, 224, 232),
-        juce::Colour::fromRGB (80, 130, 255),
-        juce::Colour::fromRGB (240, 80, 86),
-        juce::Colour::fromRGB (245, 184, 80)
-    };
 }
 
 void MainComponent::drawProfileEditor (juce::Graphics& g, juce::Rectangle<float> area)
@@ -702,93 +526,6 @@ void MainComponent::drawProfileEditor (juce::Graphics& g, juce::Rectangle<float>
     g.setFont (juce::FontOptions (14.0f, juce::Font::bold));
     g.drawText ("Geometry profile", area.reduced (18.0f).removeFromTop (24.0f),
                 juce::Justification::left);
-}
-
-void MainComponent::drawColourProfileBar (juce::Graphics& g, juce::Rectangle<float> area)
-{
-    constexpr float pillHeight = 24.0f;
-    constexpr float gap = 8.0f;
-
-    auto selectorRow = area.removeFromTop (pillHeight);
-    area.removeFromTop (gap);
-    auto actionRow = area.removeFromTop (pillHeight);
-
-    const auto previousPill = juce::Rectangle<float> (selectorRow.getX(), selectorRow.getY(), 32.0f, pillHeight);
-    const auto profilePill = juce::Rectangle<float> (previousPill.getRight() + gap, selectorRow.getY(), 126.0f, pillHeight);
-    const auto nextPill = juce::Rectangle<float> (profilePill.getRight() + gap, selectorRow.getY(), 32.0f, pillHeight);
-
-    const auto duplicatePill = juce::Rectangle<float> (actionRow.getX(), actionRow.getY(), 46.0f, pillHeight);
-    const auto deletePill = juce::Rectangle<float> (duplicatePill.getRight() + gap, actionRow.getY(), 46.0f, pillHeight);
-    const auto minusPill = juce::Rectangle<float> (deletePill.getRight() + gap, actionRow.getY(), 58.0f, pillHeight);
-    const auto plusPill = juce::Rectangle<float> (minusPill.getRight() + gap, actionRow.getY(), 58.0f, pillHeight);
-
-    auto drawButton = [&] (juce::Rectangle<float> button, const juce::String& text, bool enabled = true, bool selected = false)
-    {
-        g.setColour (juce::Colours::white.withAlpha (selected ? 0.18f : (enabled ? 0.07f : 0.03f)));
-        g.fillRoundedRectangle (button, 6.0f);
-
-        g.setColour (juce::Colours::white.withAlpha (selected ? 0.85f : (enabled ? 0.35f : 0.14f)));
-        g.drawRoundedRectangle (button, 6.0f, selected ? 2.0f : 1.0f);
-
-        g.setColour (juce::Colours::white.withAlpha (enabled ? 0.62f : 0.22f));
-        g.drawText (text, button.reduced (7.0f, 0.0f), juce::Justification::centred);
-    };
-
-    const auto hasProfiles = ! colourProfiles.empty();
-
-    drawButton (previousPill, "<", hasProfiles);
-    drawButton (nextPill, ">", hasProfiles);
-
-    juce::String profileText = "No profile";
-
-    if (hasProfiles)
-    {
-        const auto indexText = juce::String (selectedColourProfileIndex + 1) + "/" + juce::String ((int) colourProfiles.size());
-        const auto angleText = juce::String ((int) colourProfiles[(size_t) selectedColourProfileIndex].angleDeg) + "deg";
-        profileText = "P" + indexText + "  " + angleText;
-    }
-
-    drawButton (profilePill, profileText, hasProfiles, true);
-
-    drawButton (duplicatePill, "+P", hasProfiles);
-    drawButton (deletePill, "Del", colourProfiles.size() > 1);
-    drawButton (minusPill, "-15deg", hasProfiles);
-    drawButton (plusPill, "+15deg", hasProfiles);
-}
-
-void MainComponent::drawColourPalette (juce::Graphics& g, juce::Rectangle<float> area)
-{
-    g.setFont (juce::FontOptions (12.0f));
-    g.setColour (juce::Colours::white.withAlpha (0.45f));
-
-    const auto label = selectedPointIndex >= 0
-        ? "Selected point colour"
-        : "Select a point to edit its colour";
-
-    g.drawText (label, area.removeFromTop (18.0f), juce::Justification::left);
-
-    const auto colours = getPaletteColours();
-
-    constexpr float swatchSize = 24.0f;
-    constexpr float gap = 8.0f;
-
-    for (int i = 0; i < (int) colours.size(); ++i)
-    {
-        const auto swatch = juce::Rectangle<float> (
-            area.getX() + (swatchSize + gap) * (float) i,
-            area.getY(),
-            swatchSize,
-            swatchSize);
-
-        g.setColour (colours[(size_t) i]);
-        g.fillRoundedRectangle (swatch, 5.0f);
-
-        const auto isActive = selectedPointIndex >= 0
-            && getPointColour (selectedPointIndex).getARGB() == colours[(size_t) i].getARGB();
-
-        g.setColour (juce::Colours::white.withAlpha (isActive ? 0.95f : 0.25f));
-        g.drawRoundedRectangle (swatch, 5.0f, isActive ? 2.0f : 1.0f);
-    }
 }
 
 void MainComponent::drawPreview (juce::Graphics& g, juce::Rectangle<float> area)
@@ -864,7 +601,7 @@ void MainComponent::drawPreview (juce::Graphics& g, juce::Rectangle<float> area)
 
     auto heightValueAt = [&] (float profileX)
     {
-        const auto sample = sampleProfileAt (profileX, 0);
+        const auto sample = sampleProfileAt (profileX);
         return juce::jlimit (0.0f, 1.0f, sample.y);
     };
 
@@ -957,30 +694,6 @@ void MainComponent::drawPreview (juce::Graphics& g, juce::Rectangle<float> area)
         imageBounds.getWidth(),
         imageBounds.getHeight(),
         true);
-
-    auto applyAutoShade = [&] (juce::Colour colour, float x)
-    {
-        if (! autoShadeEnabled)
-            return colour;
-
-        constexpr float sampleStep = 1.0f / 128.0f;
-
-        const auto x0 = juce::jlimit (0.0f, 1.0f, x - sampleStep);
-        const auto x1 = juce::jlimit (0.0f, 1.0f, x + sampleStep);
-
-        const auto current = sampleProfileAt (x, selectedColourProfileIndex);
-        const auto a = sampleProfileAt (x0, selectedColourProfileIndex);
-        const auto b = sampleProfileAt (x1, selectedColourProfileIndex);
-
-        const auto heightTint = (current.y - 0.5f) * 0.18f;
-        const auto slopeTint = (b.y - a.y) * 0.32f;
-        const auto tint = juce::jlimit (-0.35f, 0.35f, heightTint + slopeTint);
-
-        if (tint >= 0.0f)
-            return colour.interpolatedWith (juce::Colours::white, tint);
-
-        return colour.interpolatedWith (juce::Colours::black, -tint);
-    };
 
     for (int y = 0; y < previewImage.getHeight(); ++y)
     {
