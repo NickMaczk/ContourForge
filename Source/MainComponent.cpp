@@ -327,6 +327,7 @@ void MainComponent::mouseDrag (const juce::MouseEvent& e)
 void MainComponent::mouseUp (const juce::MouseEvent&)
 {
     draggedPointIndex = -1;
+    repaint();
 }
 
 void MainComponent::mouseDoubleClick (const juce::MouseEvent& e)
