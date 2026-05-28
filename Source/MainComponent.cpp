@@ -268,11 +268,13 @@ void MainComponent::drawPreview (juce::Graphics& g, juce::Rectangle<float> area)
                 juce::Justification::left);
 
     auto shapeArea = area.reduced (70.0f, 82.0f);
-    const auto maxInset = juce::jmin (shapeArea.getWidth(), shapeArea.getHeight()) * 0.46f;
-
     auto getContour = [&] (const ProfilePoint& p)
     {
-        return shapeArea.reduced (p.x * maxInset);
+        const auto scale = 1.0f - p.x;
+
+        return shapeArea.withSizeKeepingCentre (
+            juce::jmax (1.0f, shapeArea.getWidth() * scale),
+            juce::jmax (1.0f, shapeArea.getHeight() * scale));
     };
 
     auto getCornerRadius = [] (const ProfilePoint& p)
