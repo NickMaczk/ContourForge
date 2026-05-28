@@ -141,7 +141,7 @@ void MainComponent::mouseDown (const juce::MouseEvent& e)
     }
 
     {
-        auto previewControls = getPreviewArea().reduced (18.0f).removeFromTop (56.0f).removeFromRight (260.0f);
+        auto previewControls = getPreviewArea().reduced (18.0f).removeFromTop (56.0f).removeFromRight (340.0f);
 
         auto shapeRow = previewControls.removeFromTop (24.0f);
         previewControls.removeFromTop (8.0f);
@@ -153,11 +153,13 @@ void MainComponent::mouseDown (const juce::MouseEvent& e)
 
         const auto heightButton = modeRow.removeFromLeft (72.0f);
         modeRow.removeFromLeft (8.0f);
-        const auto cavityButton = modeRow.removeFromLeft (48.0f);
+        const auto cavityButton = modeRow.removeFromLeft (68.0f);
         modeRow.removeFromLeft (8.0f);
-        const auto cavityMinusButton = modeRow.removeFromLeft (56.0f);
+        const auto aoButton = modeRow.removeFromLeft (48.0f);
         modeRow.removeFromLeft (8.0f);
-        const auto cavityPlusButton = modeRow.removeFromLeft (56.0f);
+        const auto rangeMinusButton = modeRow.removeFromLeft (56.0f);
+        modeRow.removeFromLeft (8.0f);
+        const auto rangePlusButton = modeRow.removeFromLeft (56.0f);
 
         if (circleButton.contains (mouse))
         {
@@ -187,18 +189,37 @@ void MainComponent::mouseDown (const juce::MouseEvent& e)
             return;
         }
 
-        if (cavityMinusButton.contains (mouse))
+        if (aoButton.contains (mouse))
         {
-            cavityPropagation = juce::jlimit (0.04f, 0.80f, cavityPropagation - 0.04f);
-            previewMode = PreviewMode::cavity;
+            previewMode = PreviewMode::ambientOcclusion;
             repaint();
             return;
         }
 
-        if (cavityPlusButton.contains (mouse))
+        if (rangeMinusButton.contains (mouse))
         {
-            cavityPropagation = juce::jlimit (0.04f, 0.80f, cavityPropagation + 0.04f);
-            previewMode = PreviewMode::cavity;
+            if (previewMode == PreviewMode::cavity)
+                cavityPropagation = juce::jlimit (0.04f, 0.80f, cavityPropagation - 0.04f);
+            else
+            {
+                ambientOcclusionPropagation = juce::jlimit (0.04f, 0.80f, ambientOcclusionPropagation - 0.04f);
+                previewMode = PreviewMode::ambientOcclusion;
+            }
+
+            repaint();
+            return;
+        }
+
+        if (rangePlusButton.contains (mouse))
+        {
+            if (previewMode == PreviewMode::cavity)
+                cavityPropagation = juce::jlimit (0.04f, 0.80f, cavityPropagation + 0.04f);
+            else
+            {
+                ambientOcclusionPropagation = juce::jlimit (0.04f, 0.80f, ambientOcclusionPropagation + 0.04f);
+                previewMode = PreviewMode::ambientOcclusion;
+            }
+
             repaint();
             return;
         }
@@ -386,8 +407,13 @@ juce::var MainComponent::createProjectState() const
 
     root->setProperty ("version", 2);
     root->setProperty ("previewShape", previewShape == PreviewShape::circle ? "circle" : "square");
-    root->setProperty ("previewMode", previewMode == PreviewMode::cavity ? "cavity" : "heightMap");
+    root->setProperty ("previewMode",
+        previewMode == PreviewMode::cavity ? "cavity"
+        : previewMode == PreviewMode::ambientOcclusion ? "ambientOcclusion"
+        : "heightMap");
+
     root->setProperty ("cavityPropagation", cavityPropagation);
+    root->setProperty ("ambientOcclusionPropagation", ambientOcclusionPropagation);
 
     juce::Array<juce::var> points;
 
@@ -441,11 +467,20 @@ bool MainComponent::applyProjectState (const juce::var& state)
         ? PreviewShape::square
         : PreviewShape::circle;
 
-    previewMode = root->getProperty ("previewMode").toString() == "cavity"
+    const auto previewModeText = root->getProperty ("previewMode").toString();
+
+    previewMode = previewModeText == "cavity"
         ? PreviewMode::cavity
-        : PreviewMode::heightMap;
+        : previewModeText == "ambientOcclusion"
+            ? PreviewMode::ambientOcclusion
+            : PreviewMode::heightMap;
 
     cavityPropagation = juce::jlimit (0.04f, 0.80f, (float) (double) root->getProperty ("cavityPropagation"));
+
+    const auto loadedAmbientOcclusionPropagation = root->getProperty ("ambientOcclusionPropagation");
+
+    if (! loadedAmbientOcclusionPropagation.isVoid())
+        ambientOcclusionPropagation = juce::jlimit (0.04f, 0.80f, (float) (double) loadedAmbientOcclusionPropagation);
 
     selectedPointIndex = -1;
     draggedPointIndex = -1;
@@ -543,7 +578,7 @@ void MainComponent::drawPreview (juce::Graphics& g, juce::Rectangle<float> area)
     g.drawText ("Shape preview", titleRow.removeFromLeft (280.0f),
                 juce::Justification::left);
 
-    auto previewControls = area.reduced (18.0f).removeFromTop (56.0f).removeFromRight (260.0f);
+    auto previewControls = area.reduced (18.0f).removeFromTop (56.0f).removeFromRight (340.0f);
 
     auto shapeRow = previewControls.removeFromTop (24.0f);
     previewControls.removeFromTop (8.0f);
@@ -555,11 +590,13 @@ void MainComponent::drawPreview (juce::Graphics& g, juce::Rectangle<float> area)
 
     const auto heightButton = modeRow.removeFromLeft (72.0f);
     modeRow.removeFromLeft (8.0f);
-    const auto cavityButton = modeRow.removeFromLeft (48.0f);
+    const auto cavityButton = modeRow.removeFromLeft (68.0f);
     modeRow.removeFromLeft (8.0f);
-    const auto cavityMinusButton = modeRow.removeFromLeft (56.0f);
+    const auto aoButton = modeRow.removeFromLeft (48.0f);
     modeRow.removeFromLeft (8.0f);
-    const auto cavityPlusButton = modeRow.removeFromLeft (56.0f);
+    const auto rangeMinusButton = modeRow.removeFromLeft (56.0f);
+    modeRow.removeFromLeft (8.0f);
+    const auto rangePlusButton = modeRow.removeFromLeft (56.0f);
 
     auto drawShapeButton = [&] (juce::Rectangle<float> button, const juce::String& text, bool selected)
     {
@@ -578,8 +615,9 @@ void MainComponent::drawPreview (juce::Graphics& g, juce::Rectangle<float> area)
     drawShapeButton (squareButton, "Square", previewShape == PreviewShape::square);
     drawShapeButton (heightButton, "Height", previewMode == PreviewMode::heightMap);
     drawShapeButton (cavityButton, "Cavity", previewMode == PreviewMode::cavity);
-    drawShapeButton (cavityMinusButton, "Cav-", false);
-    drawShapeButton (cavityPlusButton, "Cav+", false);
+    drawShapeButton (aoButton, "AO", previewMode == PreviewMode::ambientOcclusion);
+    drawShapeButton (rangeMinusButton, "Range-", false);
+    drawShapeButton (rangePlusButton, "Range+", false);
 
     auto shapeArea = area.reduced (84.0f, 92.0f);
     const auto side = juce::jmin (shapeArea.getWidth(), shapeArea.getHeight());
@@ -695,6 +733,91 @@ void MainComponent::drawPreview (juce::Graphics& g, juce::Rectangle<float> area)
         imageBounds.getHeight(),
         true);
 
+    auto sampleHeightAtPixel = [&] (float pixelX, float pixelY, float& height)
+    {
+        const auto dx = pixelX - centre.x;
+        const auto dy = pixelY - centre.y;
+        const auto distance = std::sqrt (dx * dx + dy * dy);
+
+        if (distance <= 0.0001f)
+        {
+            height = heightValueAt (1.0f);
+            return true;
+        }
+
+        const auto angleDeg = normaliseAngle (
+            std::atan2 (dy, dx) * 180.0f / juce::MathConstants<float>::pi + 90.0f);
+
+        float edgeDistance = outerRadius;
+
+        if (previewShape == PreviewShape::square)
+        {
+            const auto radians = (angleDeg - 90.0f) * juce::MathConstants<float>::pi / 180.0f;
+            const auto dirX = std::cos (radians);
+            const auto dirY = std::sin (radians);
+
+            const auto halfW = shapeArea.getWidth() * 0.5f;
+            const auto halfH = shapeArea.getHeight() * 0.5f;
+
+            const auto tx = std::abs (dirX) < 0.0001f ? 999999.0f : halfW / std::abs (dirX);
+            const auto ty = std::abs (dirY) < 0.0001f ? 999999.0f : halfH / std::abs (dirY);
+
+            edgeDistance = juce::jmin (tx, ty);
+        }
+
+        if (distance > edgeDistance)
+            return false;
+
+        const auto profileX = juce::jlimit (0.0f, 1.0f, 1.0f - distance / edgeDistance);
+        height = heightValueAt (profileX);
+        return true;
+    };
+
+    auto ambientOcclusionAtPixel = [&] (float pixelX, float pixelY, float currentHeight)
+    {
+        const auto radiusPx = juce::jmap (ambientOcclusionPropagation, 0.04f, 0.80f, 4.0f, 56.0f);
+
+        constexpr int ringCount = 4;
+        constexpr int directionCount = 12;
+
+        float occlusion = 0.0f;
+        float weightSum = 0.0001f;
+
+        for (int ring = 1; ring <= ringCount; ++ring)
+        {
+            const auto ringAmount = (float) ring / (float) ringCount;
+            const auto radius = radiusPx * ringAmount;
+            const auto ringFalloff = 1.0f - ringAmount * 0.72f;
+
+            for (int direction = 0; direction < directionCount; ++direction)
+            {
+                const auto angle = juce::MathConstants<float>::twoPi
+                    * ((float) direction / (float) directionCount)
+                    + (float) ring * 0.31f;
+
+                float sampleHeight = 0.0f;
+
+                const auto hasSample = sampleHeightAtPixel (
+                    pixelX + std::cos (angle) * radius,
+                    pixelY + std::sin (angle) * radius,
+                    sampleHeight);
+
+                if (! hasSample)
+                    continue;
+
+                constexpr float heightBias = 0.045f;
+                const auto higherNeighbour = juce::jmax (0.0f, sampleHeight - currentHeight - heightBias);
+
+                const auto contribution = juce::jlimit (0.0f, 1.0f, higherNeighbour * 2.4f);
+                occlusion += contribution * ringFalloff;
+                weightSum += ringFalloff;
+            }
+        }
+
+        const auto normalized = juce::jlimit (0.0f, 0.78f, (occlusion / weightSum) * 2.8f);
+        return 1.0f - normalized;
+    };
+
     for (int y = 0; y < previewImage.getHeight(); ++y)
     {
         for (int x = 0; x < previewImage.getWidth(); ++x)
@@ -709,6 +832,13 @@ void MainComponent::drawPreview (juce::Graphics& g, juce::Rectangle<float> area)
             if (distance <= 0.0001f)
             {
                 auto colour = colourAt (1.0f, 0.0f);
+
+                if (previewMode == PreviewMode::ambientOcclusion)
+                {
+                    const auto value = ambientOcclusionAtPixel (pixelX, pixelY, heightValueAt (1.0f));
+                    colour = juce::Colour::fromFloatRGBA (value, value, value, 1.0f);
+                }
+
                 previewImage.setPixelAt (x, y, colour);
                 continue;
             }
@@ -739,6 +869,12 @@ void MainComponent::drawPreview (juce::Graphics& g, juce::Rectangle<float> area)
             const auto profileX = juce::jlimit (0.0f, 1.0f, 1.0f - distance / edgeDistance);
 
             auto colour = colourAt (profileX, angleDeg);
+
+            if (previewMode == PreviewMode::ambientOcclusion)
+            {
+                const auto value = ambientOcclusionAtPixel (pixelX, pixelY, heightValueAt (profileX));
+                colour = juce::Colour::fromFloatRGBA (value, value, value, 1.0f);
+            }
 
             previewImage.setPixelAt (x, y, colour);
         }
