@@ -56,6 +56,36 @@ void MainComponent::mouseDown (const juce::MouseEvent& e)
     const auto area = getProfileArea();
     const auto mouse = e.position;
 
+    {
+        auto previewArea = getPreviewArea();
+        auto shapeArea = previewArea.reduced (84.0f, 92.0f);
+        const auto centre = shapeArea.getCentre();
+        const auto outerRadius = juce::jmin (shapeArea.getWidth(), shapeArea.getHeight()) * 0.5f;
+
+        auto pointAt = [&] (float radius, float angleDeg)
+        {
+            const auto radians = (angleDeg - 90.0f) * juce::MathConstants<float>::pi / 180.0f;
+
+            return juce::Point<float>
+            {
+                centre.x + std::cos (radians) * radius,
+                centre.y + std::sin (radians) * radius
+            };
+        };
+
+        for (int i = 0; i < (int) colourProfiles.size(); ++i)
+        {
+            const auto marker = pointAt (outerRadius + 18.0f, colourProfiles[(size_t) i].angleDeg);
+
+            if (marker.getDistanceFrom (mouse) <= 14.0f)
+            {
+                selectedColourProfileIndex = i;
+                repaint();
+                return;
+            }
+        }
+    }
+
     if (getColourProfileBarArea().contains (mouse))
     {
         auto bar = getColourProfileBarArea();
