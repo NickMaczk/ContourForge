@@ -189,22 +189,35 @@ void MainComponent::drawPreview (juce::Graphics& g, juce::Rectangle<float> area)
 
     auto shapeArea = area.reduced (70.0f, 82.0f);
     const auto maxInset = juce::jmin (shapeArea.getWidth(), shapeArea.getHeight()) * 0.46f;
+    const auto depthAmount = 42.0f;
+
+    auto getContour = [&] (const ProfilePoint& p)
+    {
+        auto r = shapeArea.reduced (p.x * maxInset);
+
+        const auto depth = (p.y - 0.5f) * depthAmount;
+        r.translate (-depth * 0.55f, -depth);
+
+        return r;
+    };
+
+    auto getCornerRadius = [] (const ProfilePoint& p)
+    {
+        return juce::jlimit (8.0f, 72.0f, 72.0f - p.x * 42.0f);
+    };
 
     for (int i = 0; i < (int) profilePoints.size() - 1; ++i)
     {
         const auto& a = profilePoints[(size_t) i];
         const auto& b = profilePoints[(size_t) i + 1];
 
-        auto outer = shapeArea.reduced (a.x * maxInset);
-        auto inner = shapeArea.reduced (b.x * maxInset);
-
-        const auto roundA = 28.0f + a.y * 46.0f;
-        const auto roundB = 28.0f + b.y * 46.0f;
+        const auto outer = getContour (a);
+        const auto inner = getContour (b);
 
         juce::Path band;
         band.setUsingNonZeroWinding (false);
-        band.addRoundedRectangle (outer, roundA);
-        band.addRoundedRectangle (inner, roundB);
+        band.addRoundedRectangle (outer, getCornerRadius (a));
+        band.addRoundedRectangle (inner, getCornerRadius (b));
 
         g.setColour (a.colour.interpolatedWith (b.colour, 0.5f));
         g.fillPath (band);
@@ -213,11 +226,11 @@ void MainComponent::drawPreview (juce::Graphics& g, juce::Rectangle<float> area)
         g.strokePath (band, juce::PathStrokeType (1.0f));
     }
 
-    auto inner = shapeArea.reduced (profilePoints.back().x * maxInset);
+    const auto inner = getContour (profilePoints.back());
 
     g.setColour (profilePoints.back().colour);
-    g.fillRoundedRectangle (inner, 34.0f);
+    g.fillRoundedRectangle (inner, getCornerRadius (profilePoints.back()));
 
     g.setColour (juce::Colours::white.withAlpha (0.12f));
-    g.drawRoundedRectangle (shapeArea, 74.0f, 1.0f);
+    g.drawRoundedRectangle (getContour (profilePoints.front()), getCornerRadius (profilePoints.front()), 1.0f);
 }
