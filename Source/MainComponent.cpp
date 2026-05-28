@@ -40,7 +40,7 @@ void MainComponent::paint (juce::Graphics& g)
 
     g.setFont (juce::FontOptions (13.0f));
     g.setColour (juce::Colours::white.withAlpha (0.45f));
-    g.drawText ("Drag points. Double-click to add. Right-click to remove. Duplicate colour profiles below.",
+    g.drawText ("Drag profile points. Double-click to add. Right-click to remove.",
                 24, 46, 720, 22, juce::Justification::left);
 
     auto drawTopButton = [&] (juce::Rectangle<float> button, const juce::String& text)
@@ -155,20 +155,11 @@ void MainComponent::mouseDown (const juce::MouseEvent& e)
     }
 
     {
-        auto previewArea = getPreviewArea();
-        auto previewControls = previewArea.reduced (18.0f).removeFromTop (56.0f).removeFromRight (160.0f);
+        auto previewControls = getPreviewArea().reduced (18.0f).removeFromTop (24.0f).removeFromRight (160.0f);
 
-        auto shapeRow = previewControls.removeFromTop (24.0f);
-        previewControls.removeFromTop (8.0f);
-        auto shadeRow = previewControls.removeFromTop (24.0f);
-
-        const auto circleButton = shapeRow.removeFromLeft (72.0f);
-        shapeRow.removeFromLeft (8.0f);
-        const auto squareButton = shapeRow.removeFromLeft (80.0f);
-
-        const auto shadeButton = shadeRow.removeFromLeft (92.0f);
-        shadeRow.removeFromLeft (8.0f);
-        const auto bakeButton = shadeRow.removeFromLeft (60.0f);
+        const auto circleButton = previewControls.removeFromLeft (72.0f);
+        previewControls.removeFromLeft (8.0f);
+        const auto squareButton = previewControls.removeFromLeft (80.0f);
 
         if (circleButton.contains (mouse))
         {
@@ -183,184 +174,6 @@ void MainComponent::mouseDown (const juce::MouseEvent& e)
             repaint();
             return;
         }
-
-        if (shadeButton.contains (mouse))
-        {
-            autoShadeEnabled = ! autoShadeEnabled;
-            repaint();
-            return;
-        }
-
-        if (bakeButton.contains (mouse))
-        {
-            bakeAutoShadeIntoSelectedProfile();
-            autoShadeEnabled = false;
-            repaint();
-            return;
-        }
-    }
-
-    {
-        auto previewArea = getPreviewArea();
-        auto shapeArea = previewArea.reduced (84.0f, 92.0f);
-        const auto centre = shapeArea.getCentre();
-        const auto outerRadius = juce::jmin (shapeArea.getWidth(), shapeArea.getHeight()) * 0.5f;
-
-        auto pointAt = [&] (float radius, float angleDeg)
-        {
-            const auto radians = (angleDeg - 90.0f) * juce::MathConstants<float>::pi / 180.0f;
-
-            return juce::Point<float>
-            {
-                centre.x + std::cos (radians) * radius,
-                centre.y + std::sin (radians) * radius
-            };
-        };
-
-        for (int i = 0; i < (int) colourProfiles.size(); ++i)
-        {
-            const auto marker = pointAt (outerRadius + 18.0f, colourProfiles[(size_t) i].angleDeg);
-
-            if (marker.getDistanceFrom (mouse) <= 14.0f)
-            {
-                selectedColourProfileIndex = i;
-                draggedColourProfileIndex = i;
-                repaint();
-                return;
-            }
-        }
-    }
-
-    if (getColourProfileBarArea().contains (mouse))
-    {
-        auto bar = getColourProfileBarArea();
-
-        constexpr float pillHeight = 24.0f;
-        constexpr float gap = 8.0f;
-
-        auto selectorRow = bar.removeFromTop (pillHeight);
-        bar.removeFromTop (gap);
-        auto actionRow = bar.removeFromTop (pillHeight);
-
-        const auto previousPill = juce::Rectangle<float> (selectorRow.getX(), selectorRow.getY(), 32.0f, pillHeight);
-        const auto profilePill = juce::Rectangle<float> (previousPill.getRight() + gap, selectorRow.getY(), 126.0f, pillHeight);
-        const auto nextPill = juce::Rectangle<float> (profilePill.getRight() + gap, selectorRow.getY(), 32.0f, pillHeight);
-
-        const auto duplicatePill = juce::Rectangle<float> (actionRow.getX(), actionRow.getY(), 46.0f, pillHeight);
-        const auto deletePill = juce::Rectangle<float> (duplicatePill.getRight() + gap, actionRow.getY(), 46.0f, pillHeight);
-        const auto minusPill = juce::Rectangle<float> (deletePill.getRight() + gap, actionRow.getY(), 58.0f, pillHeight);
-        const auto plusPill = juce::Rectangle<float> (minusPill.getRight() + gap, actionRow.getY(), 58.0f, pillHeight);
-
-        auto selectRelativeProfile = [&] (int delta)
-        {
-            if (colourProfiles.empty())
-                return;
-
-            selectedColourProfileIndex += delta;
-
-            if (selectedColourProfileIndex < 0)
-                selectedColourProfileIndex = (int) colourProfiles.size() - 1;
-
-            if (selectedColourProfileIndex >= (int) colourProfiles.size())
-                selectedColourProfileIndex = 0;
-
-            repaint();
-        };
-
-        auto moveSelectedProfileAngle = [&] (float delta)
-        {
-            if (colourProfiles.empty())
-                return;
-
-            auto& angle = colourProfiles[(size_t) selectedColourProfileIndex].angleDeg;
-            angle += delta;
-
-            while (angle < 0.0f)
-                angle += 360.0f;
-
-            while (angle >= 360.0f)
-                angle -= 360.0f;
-
-            repaint();
-        };
-
-        if (previousPill.contains (mouse))
-        {
-            selectRelativeProfile (-1);
-            return;
-        }
-
-        if (nextPill.contains (mouse))
-        {
-            selectRelativeProfile (1);
-            return;
-        }
-
-        if (duplicatePill.contains (mouse) && ! colourProfiles.empty())
-        {
-            auto clone = colourProfiles[(size_t) selectedColourProfileIndex];
-            clone.angleDeg += 90.0f;
-
-            while (clone.angleDeg >= 360.0f)
-                clone.angleDeg -= 360.0f;
-
-            colourProfiles.push_back (clone);
-            selectedColourProfileIndex = (int) colourProfiles.size() - 1;
-
-            repaint();
-            return;
-        }
-
-        if (deletePill.contains (mouse) && colourProfiles.size() > 1)
-        {
-            colourProfiles.erase (colourProfiles.begin() + selectedColourProfileIndex);
-            selectedColourProfileIndex = juce::jlimit (0, (int) colourProfiles.size() - 1, selectedColourProfileIndex);
-
-            repaint();
-            return;
-        }
-
-        if (minusPill.contains (mouse))
-        {
-            moveSelectedProfileAngle (-15.0f);
-            return;
-        }
-
-        if (plusPill.contains (mouse))
-        {
-            moveSelectedProfileAngle (15.0f);
-            return;
-        }
-
-        return;
-    }
-
-    if (selectedPointIndex >= 0 && getColourPaletteArea().contains (mouse))
-    {
-        const auto colours = getPaletteColours();
-        auto paletteArea = getColourPaletteArea();
-        paletteArea.removeFromTop (18.0f);
-
-        constexpr float swatchSize = 24.0f;
-        constexpr float gap = 8.0f;
-
-        for (int i = 0; i < (int) colours.size(); ++i)
-        {
-            const auto swatch = juce::Rectangle<float> (
-                paletteArea.getX() + (swatchSize + gap) * (float) i,
-                paletteArea.getY(),
-                swatchSize,
-                swatchSize);
-
-            if (swatch.contains (mouse))
-            {
-                setPointColour (selectedPointIndex, colours[(size_t) i]);
-                repaint();
-                return;
-            }
-        }
-
-        return;
     }
 
     draggedPointIndex = -1;
@@ -375,9 +188,6 @@ void MainComponent::mouseDown (const juce::MouseEvent& e)
             if (e.mods.isPopupMenu() && i > 0 && i < (int) profilePoints.size() - 1)
             {
                 profilePoints.erase (profilePoints.begin() + i);
-
-                for (auto& colourProfile : colourProfiles)
-                    colourProfile.colours.erase (colourProfile.colours.begin() + i);
 
                 selectedPointIndex = -1;
                 repaint();
@@ -394,31 +204,6 @@ void MainComponent::mouseDown (const juce::MouseEvent& e)
 
 void MainComponent::mouseDrag (const juce::MouseEvent& e)
 {
-    if (draggedColourProfileIndex >= 0)
-    {
-        auto previewArea = getPreviewArea();
-        auto shapeArea = previewArea.reduced (84.0f, 92.0f);
-        const auto side = juce::jmin (shapeArea.getWidth(), shapeArea.getHeight());
-        shapeArea = shapeArea.withSizeKeepingCentre (side, side);
-
-        const auto centre = shapeArea.getCentre();
-        const auto dx = e.position.x - centre.x;
-        const auto dy = e.position.y - centre.y;
-
-        auto angle = std::atan2 (dy, dx) * 180.0f / juce::MathConstants<float>::pi + 90.0f;
-
-        while (angle < 0.0f)
-            angle += 360.0f;
-
-        while (angle >= 360.0f)
-            angle -= 360.0f;
-
-        colourProfiles[(size_t) draggedColourProfileIndex].angleDeg = angle;
-
-        repaint();
-        return;
-    }
-
     if (draggedPointIndex < 0)
         return;
 
@@ -430,7 +215,6 @@ void MainComponent::mouseDrag (const juce::MouseEvent& e)
 
 void MainComponent::mouseUp (const juce::MouseEvent&)
 {
-    draggedColourProfileIndex = -1;
     draggedPointIndex = -1;
 }
 
@@ -446,7 +230,7 @@ void MainComponent::mouseDoubleClick (const juce::MouseEvent& e)
             return;
 
     auto graph = area;
-    graph.removeFromBottom (144.0f);
+    graph.removeFromBottom (28.0f);
     graph = graph.reduced (28.0f);
 
     if (! graph.contains (e.position))
@@ -469,21 +253,11 @@ void MainComponent::mouseDoubleClick (const juce::MouseEvent& e)
     if (profilePoints[(size_t) insertIndex].x - x < 0.025f)
         return;
 
-    std::vector<juce::Colour> insertedColours;
-
-    for (int profileIndex = 0; profileIndex < (int) colourProfiles.size(); ++profileIndex)
-        insertedColours.push_back (sampleProfileAt (x, profileIndex).colour);
-
     ProfilePoint newPoint;
     newPoint.x = x;
     newPoint.y = y;
 
     profilePoints.insert (profilePoints.begin() + insertIndex, newPoint);
-
-    for (int profileIndex = 0; profileIndex < (int) colourProfiles.size(); ++profileIndex)
-        colourProfiles[(size_t) profileIndex].colours.insert (
-            colourProfiles[(size_t) profileIndex].colours.begin() + insertIndex,
-            insertedColours[(size_t) profileIndex]);
 
     selectedPointIndex = insertIndex;
     draggedPointIndex = insertIndex;
@@ -522,7 +296,7 @@ juce::Rectangle<float> MainComponent::getColourPaletteArea() const
 juce::Point<float> MainComponent::profileToScreen (const ProfilePoint& p, juce::Rectangle<float> area) const
 {
     auto graph = area;
-    graph.removeFromBottom (144.0f);
+    graph.removeFromBottom (28.0f);
     graph = graph.reduced (28.0f);
 
     return
@@ -537,7 +311,7 @@ MainComponent::ProfilePoint MainComponent::screenToProfile (juce::Point<float> p
                                                             int pointIndex) const
 {
     auto graph = area;
-    graph.removeFromBottom (144.0f);
+    graph.removeFromBottom (28.0f);
     graph = graph.reduced (28.0f);
 
     auto x = (p.x - graph.getX()) / graph.getWidth();
@@ -836,7 +610,7 @@ void MainComponent::drawProfileEditor (juce::Graphics& g, juce::Rectangle<float>
     g.drawRoundedRectangle (area, 14.0f, 1.0f);
 
     auto graph = area;
-    graph.removeFromBottom (144.0f);
+    graph.removeFromBottom (28.0f);
     graph = graph.reduced (28.0f);
 
     g.setColour (juce::Colours::white.withAlpha (0.08f));
@@ -867,7 +641,7 @@ void MainComponent::drawProfileEditor (juce::Graphics& g, juce::Rectangle<float>
         const auto isDragged = i == draggedPointIndex;
         const auto isSelected = i == selectedPointIndex;
 
-        g.setColour (getPointColour (i));
+        g.setColour (juce::Colours::white.withAlpha (0.82f));
         g.fillEllipse (pt.x - 7.0f, pt.y - 7.0f, 14.0f, 14.0f);
 
         g.setColour (juce::Colours::white.withAlpha ((isDragged || isSelected) ? 0.95f : 0.5f));
@@ -876,11 +650,8 @@ void MainComponent::drawProfileEditor (juce::Graphics& g, juce::Rectangle<float>
 
     g.setColour (juce::Colours::white.withAlpha (0.55f));
     g.setFont (juce::FontOptions (14.0f, juce::Font::bold));
-    g.drawText ("Geometry + colour profile", area.reduced (18.0f).removeFromTop (24.0f),
+    g.drawText ("Geometry profile", area.reduced (18.0f).removeFromTop (24.0f),
                 juce::Justification::left);
-
-    drawColourProfileBar (g, getColourProfileBarArea());
-    drawColourPalette (g, getColourPaletteArea());
 }
 
 void MainComponent::drawColourProfileBar (juce::Graphics& g, juce::Rectangle<float> area)
@@ -982,22 +753,14 @@ void MainComponent::drawPreview (juce::Graphics& g, juce::Rectangle<float> area)
 
     g.setColour (juce::Colours::white.withAlpha (0.55f));
     g.setFont (juce::FontOptions (14.0f, juce::Font::bold));
-    g.drawText ("Colour-profile preview", titleRow.removeFromLeft (280.0f),
+    g.drawText ("Shape preview", titleRow.removeFromLeft (280.0f),
                 juce::Justification::left);
 
-    auto previewControls = area.reduced (18.0f).removeFromTop (56.0f).removeFromRight (160.0f);
+    auto previewControls = area.reduced (18.0f).removeFromTop (24.0f).removeFromRight (160.0f);
 
-    auto shapeRow = previewControls.removeFromTop (24.0f);
-    previewControls.removeFromTop (8.0f);
-    auto shadeRow = previewControls.removeFromTop (24.0f);
-
-    const auto circleButton = shapeRow.removeFromLeft (72.0f);
-    shapeRow.removeFromLeft (8.0f);
-    const auto squareButton = shapeRow.removeFromLeft (80.0f);
-
-    const auto shadeButton = shadeRow.removeFromLeft (92.0f);
-    shadeRow.removeFromLeft (8.0f);
-    const auto bakeButton = shadeRow.removeFromLeft (60.0f);
+    const auto circleButton = previewControls.removeFromLeft (72.0f);
+    previewControls.removeFromLeft (8.0f);
+    const auto squareButton = previewControls.removeFromLeft (80.0f);
 
     auto drawShapeButton = [&] (juce::Rectangle<float> button, const juce::String& text, bool selected)
     {
@@ -1014,8 +777,6 @@ void MainComponent::drawPreview (juce::Graphics& g, juce::Rectangle<float> area)
 
     drawShapeButton (circleButton, "Circle", previewShape == PreviewShape::circle);
     drawShapeButton (squareButton, "Square", previewShape == PreviewShape::square);
-    drawShapeButton (shadeButton, autoShadeEnabled ? "Shade On" : "Shade Off", autoShadeEnabled);
-    drawShapeButton (bakeButton, "Bake", false);
 
     auto shapeArea = area.reduced (84.0f, 92.0f);
     const auto side = juce::jmin (shapeArea.getWidth(), shapeArea.getHeight());
@@ -1035,55 +796,11 @@ void MainComponent::drawPreview (juce::Graphics& g, juce::Rectangle<float> area)
         return angle;
     };
 
-    auto forwardAngleDistance = [&] (float from, float to)
+    auto colourAt = [&] (float profileX, float)
     {
-        return normaliseAngle (to - from);
-    };
-
-    auto colourAt = [&] (float x, float angleDeg)
-    {
-        if (colourProfiles.empty())
-            return juce::Colours::white;
-
-        if (colourProfiles.size() == 1)
-            return sampleProfileAt (x, 0).colour;
-
-        angleDeg = normaliseAngle (angleDeg);
-
-        int previousIndex = 0;
-        int nextIndex = 0;
-
-        auto bestPreviousDistance = 360.0f;
-        auto bestNextDistance = 360.0f;
-
-        for (int i = 0; i < (int) colourProfiles.size(); ++i)
-        {
-            const auto profileAngle = normaliseAngle (colourProfiles[(size_t) i].angleDeg);
-
-            const auto previousDistance = forwardAngleDistance (profileAngle, angleDeg);
-            const auto nextDistance = forwardAngleDistance (angleDeg, profileAngle);
-
-            if (previousDistance < bestPreviousDistance)
-            {
-                bestPreviousDistance = previousDistance;
-                previousIndex = i;
-            }
-
-            if (nextDistance < bestNextDistance)
-            {
-                bestNextDistance = nextDistance;
-                nextIndex = i;
-            }
-        }
-
-        if (previousIndex == nextIndex)
-            return sampleProfileAt (x, previousIndex).colour;
-
-        const auto totalDistance = bestPreviousDistance + bestNextDistance;
-        const auto amount = totalDistance <= 0.0001f ? 0.0f : bestPreviousDistance / totalDistance;
-
-        return sampleProfileAt (x, previousIndex).colour
-            .interpolatedWith (sampleProfileAt (x, nextIndex).colour, amount);
+        const auto sample = sampleProfileAt (profileX, 0);
+        const auto value = juce::jlimit (0.0f, 1.0f, 0.18f + sample.y * 0.70f);
+        return juce::Colour::fromFloatRGBA (value, value, value, 1.0f);
     };
 
     auto circularPointAt = [&] (float radius, float angleDeg)
@@ -1218,24 +935,6 @@ void MainComponent::drawPreview (juce::Graphics& g, juce::Rectangle<float> area)
     else
         g.drawRect (shapeArea, 1.0f);
 
-    g.setFont (juce::FontOptions (12.0f, juce::Font::bold));
 
-    for (int i = 0; i < (int) colourProfiles.size(); ++i)
-    {
-        const auto angle = colourProfiles[(size_t) i].angleDeg;
-        const auto marker = circularPointAt (outerRadius + 18.0f, angle);
-        const auto colour = sampleProfileAt (0.18f, i).colour;
-        const auto isSelected = i == selectedColourProfileIndex;
-
-        g.setColour (colour);
-        g.fillEllipse (marker.x - 7.0f, marker.y - 7.0f, 14.0f, 14.0f);
-
-        g.setColour (juce::Colours::white.withAlpha (isSelected ? 0.95f : 0.45f));
-        g.drawEllipse (marker.x - 7.0f, marker.y - 7.0f, 14.0f, 14.0f, isSelected ? 2.0f : 1.0f);
-
-        g.drawText ("P" + juce::String (i + 1),
-                    juce::Rectangle<float> (marker.x - 14.0f, marker.y - 26.0f, 28.0f, 16.0f),
-                    juce::Justification::centred);
-    }
 }
 
