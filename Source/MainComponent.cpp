@@ -58,6 +58,30 @@ void MainComponent::mouseDown (const juce::MouseEvent& e)
 
     {
         auto previewArea = getPreviewArea();
+        auto shapeButtons = previewArea.reduced (18.0f).removeFromTop (24.0f);
+        shapeButtons = shapeButtons.removeFromRight (148.0f);
+
+        const auto circleButton = shapeButtons.removeFromLeft (68.0f);
+        shapeButtons.removeFromLeft (8.0f);
+        const auto squareButton = shapeButtons.removeFromLeft (72.0f);
+
+        if (circleButton.contains (mouse))
+        {
+            previewShape = PreviewShape::circle;
+            repaint();
+            return;
+        }
+
+        if (squareButton.contains (mouse))
+        {
+            previewShape = PreviewShape::square;
+            repaint();
+            return;
+        }
+    }
+
+    {
+        auto previewArea = getPreviewArea();
         auto shapeArea = previewArea.reduced (84.0f, 92.0f);
         const auto centre = shapeArea.getCentre();
         const auto outerRadius = juce::jmin (shapeArea.getWidth(), shapeArea.getHeight()) * 0.5f;
@@ -621,14 +645,40 @@ void MainComponent::drawPreview (juce::Graphics& g, juce::Rectangle<float> area)
     g.setColour (juce::Colours::white.withAlpha (0.08f));
     g.drawRoundedRectangle (area, 14.0f, 1.0f);
 
+    auto titleRow = area.reduced (18.0f).removeFromTop (24.0f);
+
     g.setColour (juce::Colours::white.withAlpha (0.55f));
     g.setFont (juce::FontOptions (14.0f, juce::Font::bold));
-    g.drawText ("Circular colour-profile preview", area.reduced (18.0f).removeFromTop (24.0f),
+    g.drawText ("Colour-profile preview", titleRow.removeFromLeft (280.0f),
                 juce::Justification::left);
 
+    auto shapeButtons = titleRow.removeFromRight (148.0f);
+    const auto circleButton = shapeButtons.removeFromLeft (68.0f);
+    shapeButtons.removeFromLeft (8.0f);
+    const auto squareButton = shapeButtons.removeFromLeft (72.0f);
+
+    auto drawShapeButton = [&] (juce::Rectangle<float> button, const juce::String& text, bool selected)
+    {
+        g.setColour (juce::Colours::white.withAlpha (selected ? 0.18f : 0.07f));
+        g.fillRoundedRectangle (button, 6.0f);
+
+        g.setColour (juce::Colours::white.withAlpha (selected ? 0.85f : 0.35f));
+        g.drawRoundedRectangle (button, 6.0f, selected ? 2.0f : 1.0f);
+
+        g.setColour (juce::Colours::white.withAlpha (0.62f));
+        g.setFont (juce::FontOptions (12.0f, juce::Font::bold));
+        g.drawText (text, button.reduced (6.0f, 0.0f), juce::Justification::centred);
+    };
+
+    drawShapeButton (circleButton, "Circle", previewShape == PreviewShape::circle);
+    drawShapeButton (squareButton, "Square", previewShape == PreviewShape::square);
+
     auto shapeArea = area.reduced (84.0f, 92.0f);
+    const auto side = juce::jmin (shapeArea.getWidth(), shapeArea.getHeight());
+    shapeArea = shapeArea.withSizeKeepingCentre (side, side);
+
     const auto centre = shapeArea.getCentre();
-    const auto outerRadius = juce::jmin (shapeArea.getWidth(), shapeArea.getHeight()) * 0.5f;
+    const auto outerRadius = side * 0.5f;
 
     auto normaliseAngle = [] (float angle)
     {
@@ -692,7 +742,7 @@ void MainComponent::drawPreview (juce::Graphics& g, juce::Rectangle<float> area)
             .interpolatedWith (sampleProfileAt (x, nextIndex).colour, amount);
     };
 
-    auto pointAt = [&] (float radius, float angleDeg)
+    auto circularPointAt = [&] (float radius, float angleDeg)
     {
         const auto radians = (angleDeg - 90.0f) * juce::MathConstants<float>::pi / 180.0f;
 
@@ -700,6 +750,35 @@ void MainComponent::drawPreview (juce::Graphics& g, juce::Rectangle<float> area)
         {
             centre.x + std::cos (radians) * radius,
             centre.y + std::sin (radians) * radius
+        };
+    };
+
+    auto shapePointAt = [&] (float x, float angleDeg)
+    {
+        const auto scale = 1.0f - x;
+        const auto radians = (angleDeg - 90.0f) * juce::MathConstants<float>::pi / 180.0f;
+
+        const auto dirX = std::cos (radians);
+        const auto dirY = std::sin (radians);
+
+        if (previewShape == PreviewShape::circle)
+            return juce::Point<float>
+            {
+                centre.x + dirX * outerRadius * scale,
+                centre.y + dirY * outerRadius * scale
+            };
+
+        const auto halfW = shapeArea.getWidth() * 0.5f;
+        const auto halfH = shapeArea.getHeight() * 0.5f;
+
+        const auto tx = std::abs (dirX) < 0.0001f ? 999999.0f : halfW / std::abs (dirX);
+        const auto ty = std::abs (dirY) < 0.0001f ? 999999.0f : halfH / std::abs (dirY);
+        const auto t = juce::jmin (tx, ty) * scale;
+
+        return juce::Point<float>
+        {
+            centre.x + dirX * t,
+            centre.y + dirY * t
         };
     };
 
@@ -714,9 +793,6 @@ void MainComponent::drawPreview (juce::Graphics& g, juce::Rectangle<float> area)
         const auto a = sampleProfileAt (x0, selectedColourProfileIndex);
         const auto b = sampleProfileAt (x1, selectedColourProfileIndex);
 
-        const auto radius0 = outerRadius * (1.0f - x0);
-        const auto radius1 = outerRadius * (1.0f - x1);
-
         for (int angleIndex = 0; angleIndex < numAngles; ++angleIndex)
         {
             const auto angle0 = 360.0f * (float) angleIndex / (float) numAngles;
@@ -725,10 +801,10 @@ void MainComponent::drawPreview (juce::Graphics& g, juce::Rectangle<float> area)
             const auto midX = (x0 + x1) * 0.5f;
 
             juce::Path wedge;
-            wedge.startNewSubPath (pointAt (radius0, angle0));
-            wedge.lineTo (pointAt (radius0, angle1));
-            wedge.lineTo (pointAt (radius1, angle1));
-            wedge.lineTo (pointAt (radius1, angle0));
+            wedge.startNewSubPath (shapePointAt (x0, angle0));
+            wedge.lineTo (shapePointAt (x0, angle1));
+            wedge.lineTo (shapePointAt (x1, angle1));
+            wedge.lineTo (shapePointAt (x1, angle0));
             wedge.closeSubPath();
 
             auto colour = colourAt (midX, midAngle);
@@ -751,14 +827,18 @@ void MainComponent::drawPreview (juce::Graphics& g, juce::Rectangle<float> area)
     }
 
     g.setColour (juce::Colours::white.withAlpha (0.12f));
-    g.drawEllipse (shapeArea, 1.0f);
+
+    if (previewShape == PreviewShape::circle)
+        g.drawEllipse (shapeArea, 1.0f);
+    else
+        g.drawRect (shapeArea, 1.0f);
 
     g.setFont (juce::FontOptions (12.0f, juce::Font::bold));
 
     for (int i = 0; i < (int) colourProfiles.size(); ++i)
     {
         const auto angle = colourProfiles[(size_t) i].angleDeg;
-        const auto marker = pointAt (outerRadius + 18.0f, angle);
+        const auto marker = circularPointAt (outerRadius + 18.0f, angle);
         const auto colour = sampleProfileAt (0.18f, i).colour;
         const auto isSelected = i == selectedColourProfileIndex;
 

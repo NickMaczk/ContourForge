@@ -36,9 +36,16 @@ private:
         juce::Colour colour;
     };
 
+    enum class PreviewShape
+    {
+        circle,
+        square
+    };
+
     std::vector<ProfilePoint> profilePoints;
     std::vector<ColourProfile> colourProfiles;
 
+    PreviewShape previewShape = PreviewShape::circle;
     int selectedColourProfileIndex = 0;
     int draggedPointIndex = -1;
     int selectedPointIndex = -1;
