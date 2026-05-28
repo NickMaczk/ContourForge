@@ -141,7 +141,7 @@ void MainComponent::mouseDown (const juce::MouseEvent& e)
     }
 
     {
-        auto previewControls = getPreviewArea().reduced (18.0f).removeFromTop (56.0f).removeFromRight (440.0f);
+        auto previewControls = getPreviewArea().reduced (18.0f).removeFromTop (56.0f).removeFromRight (500.0f);
 
         auto shapeRow = previewControls.removeFromTop (24.0f);
         previewControls.removeFromTop (8.0f);
@@ -150,6 +150,8 @@ void MainComponent::mouseDown (const juce::MouseEvent& e)
         const auto circleButton = shapeRow.removeFromLeft (72.0f);
         shapeRow.removeFromLeft (8.0f);
         const auto squareButton = shapeRow.removeFromLeft (80.0f);
+        shapeRow.removeFromLeft (8.0f);
+        const auto baseButton = shapeRow.removeFromLeft (76.0f);
 
         const auto heightButton = modeRow.removeFromLeft (60.0f);
         modeRow.removeFromLeft (6.0f);
@@ -175,6 +177,36 @@ void MainComponent::mouseDown (const juce::MouseEvent& e)
         if (squareButton.contains (mouse))
         {
             previewShape = PreviewShape::square;
+            repaint();
+            return;
+        }
+
+        if (baseButton.contains (mouse))
+        {
+            const std::vector<juce::Colour> baseColours
+            {
+                juce::Colour::fromRGB (170, 146, 105),
+                juce::Colour::fromRGB (120, 120, 126),
+                juce::Colour::fromRGB (205, 205, 198),
+                juce::Colour::fromRGB (96, 72, 54),
+                juce::Colour::fromRGB (98, 125, 150),
+                juce::Colour::fromRGB (150, 82, 74),
+                juce::Colour::fromRGB (34, 34, 38)
+            };
+
+            int nextIndex = 0;
+
+            for (int i = 0; i < (int) baseColours.size(); ++i)
+            {
+                if (baseColours[(size_t) i].getARGB() == baseColour.getARGB())
+                {
+                    nextIndex = (i + 1) % (int) baseColours.size();
+                    break;
+                }
+            }
+
+            baseColour = baseColours[(size_t) nextIndex];
+            previewMode = PreviewMode::material;
             repaint();
             return;
         }
@@ -608,7 +640,7 @@ void MainComponent::drawPreview (juce::Graphics& g, juce::Rectangle<float> area)
     g.drawText ("Shape preview", titleRow.removeFromLeft (280.0f),
                 juce::Justification::left);
 
-    auto previewControls = area.reduced (18.0f).removeFromTop (56.0f).removeFromRight (440.0f);
+    auto previewControls = area.reduced (18.0f).removeFromTop (56.0f).removeFromRight (500.0f);
 
     auto shapeRow = previewControls.removeFromTop (24.0f);
     previewControls.removeFromTop (8.0f);
@@ -617,6 +649,8 @@ void MainComponent::drawPreview (juce::Graphics& g, juce::Rectangle<float> area)
     const auto circleButton = shapeRow.removeFromLeft (72.0f);
     shapeRow.removeFromLeft (8.0f);
     const auto squareButton = shapeRow.removeFromLeft (80.0f);
+    shapeRow.removeFromLeft (8.0f);
+    const auto baseButton = shapeRow.removeFromLeft (76.0f);
 
     const auto heightButton = modeRow.removeFromLeft (60.0f);
     modeRow.removeFromLeft (6.0f);
@@ -647,6 +681,19 @@ void MainComponent::drawPreview (juce::Graphics& g, juce::Rectangle<float> area)
 
     drawShapeButton (circleButton, "Circle", previewShape == PreviewShape::circle);
     drawShapeButton (squareButton, "Square", previewShape == PreviewShape::square);
+
+    g.setColour (baseColour.withAlpha (0.82f));
+    g.fillRoundedRectangle (baseButton, 6.0f);
+
+    g.setColour (juce::Colours::white.withAlpha (0.45f));
+    g.drawRoundedRectangle (baseButton, 6.0f, 1.0f);
+
+    g.setColour (baseColour.getBrightness() < 0.42f
+        ? juce::Colours::white.withAlpha (0.72f)
+        : juce::Colours::black.withAlpha (0.62f));
+
+    g.setFont (juce::FontOptions (12.0f, juce::Font::bold));
+    g.drawText ("Base", baseButton.reduced (6.0f, 0.0f), juce::Justification::centred);
     drawShapeButton (heightButton, "Height", previewMode == PreviewMode::heightMap);
     drawShapeButton (normalButton, "Normal", previewMode == PreviewMode::normalMap);
     drawShapeButton (materialButton, "Beauty", previewMode == PreviewMode::material);
