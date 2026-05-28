@@ -879,58 +879,90 @@ void MainComponent::drawPreview (juce::Graphics& g, juce::Rectangle<float> area)
         };
     };
 
-    constexpr int numBands = 64;
-    constexpr int numAngles = 96;
+    const auto imageBounds = shapeArea.getSmallestIntegerContainer();
 
-    for (int bandIndex = 0; bandIndex < numBands; ++bandIndex)
+    juce::Image previewImage (
+        juce::Image::ARGB,
+        imageBounds.getWidth(),
+        imageBounds.getHeight(),
+        true);
+
+    auto applyAutoShade = [&] (juce::Colour colour, float x)
     {
-        const auto x0 = (float) bandIndex / (float) numBands;
-        const auto x1 = (float) (bandIndex + 1) / (float) numBands;
+        if (! autoShadeEnabled)
+            return colour;
 
+        constexpr float sampleStep = 1.0f / 128.0f;
+
+        const auto x0 = juce::jlimit (0.0f, 1.0f, x - sampleStep);
+        const auto x1 = juce::jlimit (0.0f, 1.0f, x + sampleStep);
+
+        const auto current = sampleProfileAt (x, selectedColourProfileIndex);
         const auto a = sampleProfileAt (x0, selectedColourProfileIndex);
         const auto b = sampleProfileAt (x1, selectedColourProfileIndex);
 
-        for (int angleIndex = 0; angleIndex < numAngles; ++angleIndex)
+        const auto heightTint = (current.y - 0.5f) * 0.18f;
+        const auto slopeTint = (b.y - a.y) * 0.32f;
+        const auto tint = juce::jlimit (-0.35f, 0.35f, heightTint + slopeTint);
+
+        if (tint >= 0.0f)
+            return colour.interpolatedWith (juce::Colours::white, tint);
+
+        return colour.interpolatedWith (juce::Colours::black, -tint);
+    };
+
+    for (int y = 0; y < previewImage.getHeight(); ++y)
+    {
+        for (int x = 0; x < previewImage.getWidth(); ++x)
         {
-            const auto angle0 = 360.0f * (float) angleIndex / (float) numAngles;
-            const auto angle1 = 360.0f * (float) (angleIndex + 1) / (float) numAngles;
-            const auto midAngle = (angle0 + angle1) * 0.5f;
-            const auto midX = (x0 + x1) * 0.5f;
+            const auto pixelX = (float) imageBounds.getX() + (float) x + 0.5f;
+            const auto pixelY = (float) imageBounds.getY() + (float) y + 0.5f;
 
-            constexpr float bandOverlap = 0.0015f;
-            constexpr float angleOverlapDeg = 0.35f;
+            const auto dx = pixelX - centre.x;
+            const auto dy = pixelY - centre.y;
+            const auto distance = std::sqrt (dx * dx + dy * dy);
 
-            const auto ox0 = juce::jlimit (0.0f, 1.0f, x0 - bandOverlap);
-            const auto ox1 = juce::jlimit (0.0f, 1.0f, x1 + bandOverlap);
-
-            juce::Path wedge;
-            wedge.startNewSubPath (shapePointAt (ox0, angle0 - angleOverlapDeg));
-            wedge.lineTo (shapePointAt (ox0, angle1 + angleOverlapDeg));
-            wedge.lineTo (shapePointAt (ox1, angle1 + angleOverlapDeg));
-            wedge.lineTo (shapePointAt (ox1, angle0 - angleOverlapDeg));
-            wedge.closeSubPath();
-
-            auto colour = colourAt (midX, midAngle);
-
-            if (autoShadeEnabled)
+            if (distance <= 0.0001f)
             {
-                const auto midHeight = (a.y + b.y) * 0.5f;
-                const auto slope = b.y - a.y;
-
-                const auto heightTint = (midHeight - 0.5f) * 0.18f;
-                const auto slopeTint = slope * 0.32f;
-                const auto tint = juce::jlimit (-0.35f, 0.35f, heightTint + slopeTint);
-
-                if (tint >= 0.0f)
-                    colour = colour.interpolatedWith (juce::Colours::white, tint);
-                else
-                    colour = colour.interpolatedWith (juce::Colours::black, -tint);
+                auto colour = colourAt (1.0f, 0.0f);
+                colour = applyAutoShade (colour, 1.0f);
+                previewImage.setPixelAt (x, y, colour);
+                continue;
             }
 
-            g.setColour (colour);
-            g.fillPath (wedge);
+            const auto angleDeg = normaliseAngle (
+                std::atan2 (dy, dx) * 180.0f / juce::MathConstants<float>::pi + 90.0f);
+
+            float edgeDistance = outerRadius;
+
+            if (previewShape == PreviewShape::square)
+            {
+                const auto radians = (angleDeg - 90.0f) * juce::MathConstants<float>::pi / 180.0f;
+                const auto dirX = std::cos (radians);
+                const auto dirY = std::sin (radians);
+
+                const auto halfW = shapeArea.getWidth() * 0.5f;
+                const auto halfH = shapeArea.getHeight() * 0.5f;
+
+                const auto tx = std::abs (dirX) < 0.0001f ? 999999.0f : halfW / std::abs (dirX);
+                const auto ty = std::abs (dirY) < 0.0001f ? 999999.0f : halfH / std::abs (dirY);
+
+                edgeDistance = juce::jmin (tx, ty);
+            }
+
+            if (distance > edgeDistance)
+                continue;
+
+            const auto profileX = juce::jlimit (0.0f, 1.0f, 1.0f - distance / edgeDistance);
+
+            auto colour = colourAt (profileX, angleDeg);
+            colour = applyAutoShade (colour, profileX);
+
+            previewImage.setPixelAt (x, y, colour);
         }
     }
+
+    g.drawImageAt (previewImage, imageBounds.getX(), imageBounds.getY());
 
     g.setColour (juce::Colours::white.withAlpha (0.12f));
 
