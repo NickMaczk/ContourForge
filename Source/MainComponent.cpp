@@ -120,10 +120,7 @@ MainComponent::ProfilePoint MainComponent::screenToProfile (juce::Point<float> p
 
     ProfilePoint result = profilePoints[(size_t) pointIndex];
     result.x = juce::jlimit (0.0f, 1.0f, x);
-
-    if (! isFirst && ! isLast)
-        result.y = juce::jlimit (0.0f, 1.0f, y);
-
+    result.y = juce::jlimit (0.0f, 1.0f, y);
     return result;
 }
 
