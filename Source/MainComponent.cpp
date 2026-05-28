@@ -185,7 +185,12 @@ void MainComponent::mouseDoubleClick (const juce::MouseEvent& e)
         if (profileToScreen (point, area).getDistanceFrom (e.position) < 12.0f)
             return;
 
-    auto graph = area.reduced (28.0f);
+    auto graph = area;
+    graph.removeFromBottom (112.0f);
+    graph = graph.reduced (28.0f);
+
+    if (! graph.contains (e.position))
+        return;
 
     const auto x = juce::jlimit (0.0f, 1.0f, (e.position.x - graph.getX()) / graph.getWidth());
     const auto y = juce::jlimit (0.0f, 1.0f, (graph.getBottom() - e.position.y) / graph.getHeight());
@@ -256,11 +261,14 @@ juce::Rectangle<float> MainComponent::getColourPaletteArea() const
 
 juce::Point<float> MainComponent::profileToScreen (const ProfilePoint& p, juce::Rectangle<float> area) const
 {
-    area = area.reduced (28.0f);
+    auto graph = area;
+    graph.removeFromBottom (112.0f);
+    graph = graph.reduced (28.0f);
+
     return
     {
-        area.getX() + p.x * area.getWidth(),
-        area.getBottom() - p.y * area.getHeight()
+        graph.getX() + p.x * graph.getWidth(),
+        graph.getBottom() - p.y * graph.getHeight()
     };
 }
 
@@ -268,10 +276,12 @@ MainComponent::ProfilePoint MainComponent::screenToProfile (juce::Point<float> p
                                                             juce::Rectangle<float> area,
                                                             int pointIndex) const
 {
-    area = area.reduced (28.0f);
+    auto graph = area;
+    graph.removeFromBottom (112.0f);
+    graph = graph.reduced (28.0f);
 
-    auto x = (p.x - area.getX()) / area.getWidth();
-    auto y = (area.getBottom() - p.y) / area.getHeight();
+    auto x = (p.x - graph.getX()) / graph.getWidth();
+    auto y = (graph.getBottom() - p.y) / graph.getHeight();
 
     const auto isFirst = pointIndex == 0;
     const auto isLast = pointIndex == (int) profilePoints.size() - 1;
@@ -379,7 +389,9 @@ void MainComponent::drawProfileEditor (juce::Graphics& g, juce::Rectangle<float>
     g.setColour (juce::Colours::white.withAlpha (0.08f));
     g.drawRoundedRectangle (area, 14.0f, 1.0f);
 
-    auto graph = area.reduced (28.0f);
+    auto graph = area;
+    graph.removeFromBottom (112.0f);
+    graph = graph.reduced (28.0f);
 
     g.setColour (juce::Colours::white.withAlpha (0.08f));
     for (int i = 0; i <= 4; ++i)
