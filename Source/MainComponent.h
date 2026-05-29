@@ -82,6 +82,7 @@ private:
 
     juce::Rectangle<float> getProfileArea() const;
     juce::Rectangle<float> getPreviewArea() const;
+    juce::Rectangle<float> getToolsArea() const;
     juce::Rectangle<float> getSaveButtonArea() const;
     juce::Rectangle<float> getLoadButtonArea() const;
 

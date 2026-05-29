@@ -2,7 +2,7 @@
 
 MainComponent::MainComponent()
 {
-    setSize (1000, 620);
+    setSize (1360, 680);
 
     profilePoints =
     {
@@ -141,7 +141,7 @@ void MainComponent::mouseDown (const juce::MouseEvent& e)
     }
 
     {
-        auto previewControls = getPreviewArea().reduced (18.0f).removeFromTop (120.0f).removeFromRight (500.0f);
+        auto previewControls = getToolsArea().reduced (18.0f).removeFromTop (120.0f);
 
         auto shapeRow = previewControls.removeFromTop (24.0f);
         previewControls.removeFromTop (8.0f);
@@ -187,7 +187,7 @@ void MainComponent::mouseDown (const juce::MouseEvent& e)
         beautyRow.removeFromLeft (6.0f);
         const auto radiusSlider = beautyRow.removeFromLeft (118.0f);
 
-        auto shapeGridArea = getPreviewArea().reduced (18.0f)
+        auto shapeGridArea = getToolsArea().reduced (18.0f)
             .removeFromTop (126.0f)
             .removeFromBottom (62.0f)
             .removeFromLeft (62.0f);
@@ -471,7 +471,7 @@ void MainComponent::mouseDrag (const juce::MouseEvent& e)
 {
     if (draggedPreviewSlider != PreviewSlider::none)
     {
-        auto previewControls = getPreviewArea().reduced (18.0f).removeFromTop (120.0f).removeFromRight (500.0f);
+        auto previewControls = getToolsArea().reduced (18.0f).removeFromTop (120.0f);
 
         auto shapeRow = previewControls.removeFromTop (24.0f);
         previewControls.removeFromTop (8.0f);
@@ -637,15 +637,23 @@ juce::Rectangle<float> MainComponent::getProfileArea() const
 {
     auto r = getLocalBounds().toFloat().reduced (24.0f);
     r.removeFromTop (72.0f);
-    return r.removeFromLeft (getWidth() * 0.42f).reduced (0.0f, 12.0f);
+    return r.removeFromLeft (getWidth() * 0.30f).reduced (0.0f, 12.0f);
 }
 
 juce::Rectangle<float> MainComponent::getPreviewArea() const
 {
     auto r = getLocalBounds().toFloat().reduced (24.0f);
     r.removeFromTop (72.0f);
-    r.removeFromLeft (getWidth() * 0.42f);
+    r.removeFromLeft (getWidth() * 0.30f);
+    r.removeFromRight (540.0f);
     return r.reduced (18.0f, 12.0f);
+}
+
+juce::Rectangle<float> MainComponent::getToolsArea() const
+{
+    auto r = getLocalBounds().toFloat().reduced (24.0f);
+    r.removeFromTop (72.0f);
+    return r.removeFromRight (540.0f).reduced (18.0f, 12.0f);
 }
 
 juce::Point<float> MainComponent::profileToScreen (const ProfilePoint& p, juce::Rectangle<float> area) const
@@ -991,6 +999,14 @@ void MainComponent::drawPreview (juce::Graphics& g, juce::Rectangle<float> area)
     g.setColour (juce::Colours::white.withAlpha (0.08f));
     g.drawRoundedRectangle (area, 14.0f, 1.0f);
 
+    const auto toolsArea = getToolsArea();
+
+    g.setColour (juce::Colour::fromRGB (22, 22, 26));
+    g.fillRoundedRectangle (toolsArea, 14.0f);
+
+    g.setColour (juce::Colours::white.withAlpha (0.08f));
+    g.drawRoundedRectangle (toolsArea, 14.0f, 1.0f);
+
     auto titleRow = area.reduced (18.0f).removeFromTop (24.0f);
 
     g.setColour (juce::Colours::white.withAlpha (0.55f));
@@ -1058,14 +1074,13 @@ void MainComponent::drawPreview (juce::Graphics& g, juce::Rectangle<float> area)
         + " | Rad " + juce::String (juce::roundToInt (cornerRadiusAmount * 100.0f)) + "%"
         + " | Drag /" + juce::String (previewQualityDivisor);
 
-    auto infoRow = area.reduced (18.0f).removeFromTop (54.0f).removeFromBottom (18.0f);
-    infoRow.removeFromRight (440.0f);
+    auto infoRow = toolsArea.reduced (18.0f).removeFromTop (54.0f).removeFromBottom (18.0f);
 
     g.setColour (juce::Colours::white.withAlpha (0.26f));
     g.setFont (juce::FontOptions (11.0f));
     g.drawText (infoText, infoRow, juce::Justification::left);
 
-    auto previewControls = area.reduced (18.0f).removeFromTop (120.0f).removeFromRight (500.0f);
+    auto previewControls = toolsArea.reduced (18.0f).removeFromTop (120.0f);
 
     auto shapeRow = previewControls.removeFromTop (24.0f);
     previewControls.removeFromTop (8.0f);
@@ -1111,7 +1126,7 @@ void MainComponent::drawPreview (juce::Graphics& g, juce::Rectangle<float> area)
     beautyRow.removeFromLeft (6.0f);
     const auto radiusSlider = beautyRow.removeFromLeft (118.0f);
 
-    auto shapeGridArea = area.reduced (18.0f)
+    auto shapeGridArea = toolsArea.reduced (18.0f)
         .removeFromTop (126.0f)
         .removeFromBottom (62.0f)
         .removeFromLeft (62.0f);
@@ -1286,7 +1301,8 @@ void MainComponent::drawPreview (juce::Graphics& g, juce::Rectangle<float> area)
         }
     }
 
-    auto shapeArea = area.reduced (84.0f, 144.0f);
+    auto shapeArea = area.reduced (46.0f, 58.0f);
+    shapeArea.removeFromTop (34.0f);
 
     auto getAspectRatio = [&]()
     {
