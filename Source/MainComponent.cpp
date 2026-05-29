@@ -173,22 +173,14 @@ void MainComponent::mouseDown (const juce::MouseEvent& e)
         modeRow.removeFromLeft (6.0f);
         const auto aoButton = modeRow.removeFromLeft (42.0f);
 
-        const auto rangeMinusButton = adjustRow.removeFromLeft (58.0f);
-        adjustRow.removeFromLeft (6.0f);
-        const auto rangePlusButton = adjustRow.removeFromLeft (58.0f);
-        adjustRow.removeFromLeft (6.0f);
-        const auto glossMinusButton = adjustRow.removeFromLeft (62.0f);
-        adjustRow.removeFromLeft (6.0f);
-        const auto glossPlusButton = adjustRow.removeFromLeft (62.0f);
-        adjustRow.removeFromLeft (6.0f);
-        const auto elevationMinusButton = adjustRow.removeFromLeft (58.0f);
-        adjustRow.removeFromLeft (6.0f);
-        const auto elevationPlusButton = adjustRow.removeFromLeft (58.0f);
+        const auto rangeSlider = adjustRow.removeFromLeft (126.0f);
+        adjustRow.removeFromLeft (8.0f);
+        const auto glossSlider = adjustRow.removeFromLeft (126.0f);
+        adjustRow.removeFromLeft (8.0f);
+        const auto elevationSlider = adjustRow.removeFromLeft (126.0f);
 
-        const auto beautyMinusButton = beautyRow.removeFromLeft (72.0f);
-        beautyRow.removeFromLeft (6.0f);
-        const auto beautyPlusButton = beautyRow.removeFromLeft (72.0f);
-        beautyRow.removeFromLeft (6.0f);
+        const auto depthSlider = beautyRow.removeFromLeft (150.0f);
+        beautyRow.removeFromLeft (8.0f);
         const auto ratioButton = beautyRow.removeFromLeft (96.0f);
         beautyRow.removeFromLeft (6.0f);
         const auto cornersButton = beautyRow.removeFromLeft (94.0f);
@@ -200,7 +192,40 @@ void MainComponent::mouseDown (const juce::MouseEvent& e)
             .removeFromBottom (62.0f)
             .removeFromLeft (62.0f);
 
+        auto setPreviewSliderValue = [&] (PreviewSlider slider, juce::Rectangle<float> sliderArea, float mouseX)
+        {
+            const auto amount = juce::jlimit (0.0f, 1.0f, (mouseX - sliderArea.getX()) / juce::jmax (1.0f, sliderArea.getWidth()));
 
+            if (slider == PreviewSlider::range)
+            {
+                if (previewMode == PreviewMode::material)
+                    lightAngleDeg = amount * 360.0f;
+                else if (previewMode == PreviewMode::cavity)
+                    cavityPropagation = 0.04f + amount * (0.80f - 0.04f);
+                else
+                {
+                    ambientOcclusionPropagation = 0.04f + amount * (0.80f - 0.04f);
+                    previewMode = PreviewMode::ambientOcclusion;
+                }
+            }
+            else if (slider == PreviewSlider::gloss)
+            {
+                glossAmount = amount * 2.0f;
+                previewMode = PreviewMode::material;
+            }
+            else if (slider == PreviewSlider::elevation)
+            {
+                lightElevation = 0.10f + amount * 0.90f;
+                previewMode = PreviewMode::material;
+            }
+            else if (slider == PreviewSlider::depth)
+            {
+                beautyStrength = amount * 2.0f;
+                previewMode = PreviewMode::material;
+            }
+
+            repaint();
+        };
 
         if (circleButton.contains (mouse))
         {
@@ -344,89 +369,31 @@ void MainComponent::mouseDown (const juce::MouseEvent& e)
             return;
         }
 
-        if (rangeMinusButton.contains (mouse))
+        if (rangeSlider.contains (mouse))
         {
-            if (previewMode == PreviewMode::material)
-                lightAngleDeg -= 15.0f;
-            else if (previewMode == PreviewMode::cavity)
-                cavityPropagation = juce::jlimit (0.04f, 0.80f, cavityPropagation - 0.04f);
-            else
-            {
-                ambientOcclusionPropagation = juce::jlimit (0.04f, 0.80f, ambientOcclusionPropagation - 0.04f);
-                previewMode = PreviewMode::ambientOcclusion;
-            }
-
-            while (lightAngleDeg < 0.0f)
-                lightAngleDeg += 360.0f;
-
-            repaint();
+            draggedPreviewSlider = PreviewSlider::range;
+            setPreviewSliderValue (draggedPreviewSlider, rangeSlider, mouse.x);
             return;
         }
 
-        if (rangePlusButton.contains (mouse))
+        if (glossSlider.contains (mouse))
         {
-            if (previewMode == PreviewMode::material)
-                lightAngleDeg += 15.0f;
-            else if (previewMode == PreviewMode::cavity)
-                cavityPropagation = juce::jlimit (0.04f, 0.80f, cavityPropagation + 0.04f);
-            else
-            {
-                ambientOcclusionPropagation = juce::jlimit (0.04f, 0.80f, ambientOcclusionPropagation + 0.04f);
-                previewMode = PreviewMode::ambientOcclusion;
-            }
-
-            while (lightAngleDeg >= 360.0f)
-                lightAngleDeg -= 360.0f;
-
-            repaint();
+            draggedPreviewSlider = PreviewSlider::gloss;
+            setPreviewSliderValue (draggedPreviewSlider, glossSlider, mouse.x);
             return;
         }
 
-        if (glossMinusButton.contains (mouse))
+        if (elevationSlider.contains (mouse))
         {
-            glossAmount = juce::jlimit (0.0f, 2.0f, glossAmount - 0.10f);
-            previewMode = PreviewMode::material;
-            repaint();
+            draggedPreviewSlider = PreviewSlider::elevation;
+            setPreviewSliderValue (draggedPreviewSlider, elevationSlider, mouse.x);
             return;
         }
 
-        if (glossPlusButton.contains (mouse))
+        if (depthSlider.contains (mouse))
         {
-            glossAmount = juce::jlimit (0.0f, 2.0f, glossAmount + 0.10f);
-            previewMode = PreviewMode::material;
-            repaint();
-            return;
-        }
-
-        if (elevationMinusButton.contains (mouse))
-        {
-            lightElevation = juce::jlimit (0.10f, 1.0f, lightElevation - 0.06f);
-            previewMode = PreviewMode::material;
-            repaint();
-            return;
-        }
-
-        if (elevationPlusButton.contains (mouse))
-        {
-            lightElevation = juce::jlimit (0.10f, 1.0f, lightElevation + 0.06f);
-            previewMode = PreviewMode::material;
-            repaint();
-            return;
-        }
-
-        if (beautyMinusButton.contains (mouse))
-        {
-            beautyStrength = juce::jlimit (0.0f, 2.0f, beautyStrength - 0.10f);
-            previewMode = PreviewMode::material;
-            repaint();
-            return;
-        }
-
-        if (beautyPlusButton.contains (mouse))
-        {
-            beautyStrength = juce::jlimit (0.0f, 2.0f, beautyStrength + 0.10f);
-            previewMode = PreviewMode::material;
-            repaint();
+            draggedPreviewSlider = PreviewSlider::depth;
+            setPreviewSliderValue (draggedPreviewSlider, depthSlider, mouse.x);
             return;
         }
 
@@ -471,21 +438,6 @@ void MainComponent::mouseDown (const juce::MouseEvent& e)
             return;
         }
 
-        if (elevationMinusButton.contains (mouse))
-        {
-            lightElevation = juce::jlimit (0.10f, 1.0f, lightElevation - 0.06f);
-            previewMode = PreviewMode::material;
-            repaint();
-            return;
-        }
-
-        if (elevationPlusButton.contains (mouse))
-        {
-            lightElevation = juce::jlimit (0.10f, 1.0f, lightElevation + 0.06f);
-            previewMode = PreviewMode::material;
-            repaint();
-            return;
-        }
     }
 
     draggedPointIndex = -1;
@@ -516,6 +468,72 @@ void MainComponent::mouseDown (const juce::MouseEvent& e)
 
 void MainComponent::mouseDrag (const juce::MouseEvent& e)
 {
+    if (draggedPreviewSlider != PreviewSlider::none)
+    {
+        auto previewControls = getPreviewArea().reduced (18.0f).removeFromTop (120.0f).removeFromRight (500.0f);
+
+        previewControls.removeFromTop (24.0f);
+        previewControls.removeFromTop (8.0f);
+        previewControls.removeFromTop (24.0f);
+        previewControls.removeFromTop (8.0f);
+
+        auto adjustRow = previewControls.removeFromTop (24.0f);
+        previewControls.removeFromTop (8.0f);
+        auto beautyRow = previewControls.removeFromTop (24.0f);
+
+        const auto rangeSlider = adjustRow.removeFromLeft (126.0f);
+        adjustRow.removeFromLeft (8.0f);
+        const auto glossSlider = adjustRow.removeFromLeft (126.0f);
+        adjustRow.removeFromLeft (8.0f);
+        const auto elevationSlider = adjustRow.removeFromLeft (126.0f);
+
+        const auto depthSlider = beautyRow.removeFromLeft (150.0f);
+
+        juce::Rectangle<float> sliderArea;
+
+        if (draggedPreviewSlider == PreviewSlider::range)
+            sliderArea = rangeSlider;
+        else if (draggedPreviewSlider == PreviewSlider::gloss)
+            sliderArea = glossSlider;
+        else if (draggedPreviewSlider == PreviewSlider::elevation)
+            sliderArea = elevationSlider;
+        else if (draggedPreviewSlider == PreviewSlider::depth)
+            sliderArea = depthSlider;
+
+        const auto amount = juce::jlimit (0.0f, 1.0f, (e.position.x - sliderArea.getX()) / juce::jmax (1.0f, sliderArea.getWidth()));
+
+        if (draggedPreviewSlider == PreviewSlider::range)
+        {
+            if (previewMode == PreviewMode::material)
+                lightAngleDeg = amount * 360.0f;
+            else if (previewMode == PreviewMode::cavity)
+                cavityPropagation = 0.04f + amount * (0.80f - 0.04f);
+            else
+            {
+                ambientOcclusionPropagation = 0.04f + amount * (0.80f - 0.04f);
+                previewMode = PreviewMode::ambientOcclusion;
+            }
+        }
+        else if (draggedPreviewSlider == PreviewSlider::gloss)
+        {
+            glossAmount = amount * 2.0f;
+            previewMode = PreviewMode::material;
+        }
+        else if (draggedPreviewSlider == PreviewSlider::elevation)
+        {
+            lightElevation = 0.10f + amount * 0.90f;
+            previewMode = PreviewMode::material;
+        }
+        else if (draggedPreviewSlider == PreviewSlider::depth)
+        {
+            beautyStrength = amount * 2.0f;
+            previewMode = PreviewMode::material;
+        }
+
+        repaint();
+        return;
+    }
+
     if (draggedPointIndex < 0)
         return;
 
@@ -528,6 +546,7 @@ void MainComponent::mouseDrag (const juce::MouseEvent& e)
 void MainComponent::mouseUp (const juce::MouseEvent&)
 {
     draggedPointIndex = -1;
+    draggedPreviewSlider = PreviewSlider::none;
     repaint();
 }
 
@@ -1048,22 +1067,14 @@ void MainComponent::drawPreview (juce::Graphics& g, juce::Rectangle<float> area)
     modeRow.removeFromLeft (6.0f);
     const auto aoButton = modeRow.removeFromLeft (42.0f);
 
-    const auto rangeMinusButton = adjustRow.removeFromLeft (58.0f);
-    adjustRow.removeFromLeft (6.0f);
-    const auto rangePlusButton = adjustRow.removeFromLeft (58.0f);
-    adjustRow.removeFromLeft (6.0f);
-    const auto glossMinusButton = adjustRow.removeFromLeft (62.0f);
-    adjustRow.removeFromLeft (6.0f);
-    const auto glossPlusButton = adjustRow.removeFromLeft (62.0f);
-    adjustRow.removeFromLeft (6.0f);
-    const auto elevationMinusButton = adjustRow.removeFromLeft (58.0f);
-    adjustRow.removeFromLeft (6.0f);
-    const auto elevationPlusButton = adjustRow.removeFromLeft (58.0f);
+    const auto rangeSlider = adjustRow.removeFromLeft (126.0f);
+    adjustRow.removeFromLeft (8.0f);
+    const auto glossSlider = adjustRow.removeFromLeft (126.0f);
+    adjustRow.removeFromLeft (8.0f);
+    const auto elevationSlider = adjustRow.removeFromLeft (126.0f);
 
-    const auto beautyMinusButton = beautyRow.removeFromLeft (72.0f);
-    beautyRow.removeFromLeft (6.0f);
-    const auto beautyPlusButton = beautyRow.removeFromLeft (72.0f);
-    beautyRow.removeFromLeft (6.0f);
+    const auto depthSlider = beautyRow.removeFromLeft (150.0f);
+    beautyRow.removeFromLeft (8.0f);
     const auto ratioButton = beautyRow.removeFromLeft (96.0f);
     beautyRow.removeFromLeft (6.0f);
     const auto cornersButton = beautyRow.removeFromLeft (94.0f);
@@ -1086,6 +1097,33 @@ void MainComponent::drawPreview (juce::Graphics& g, juce::Rectangle<float> area)
         g.setColour (juce::Colours::white.withAlpha (0.62f));
         g.setFont (juce::FontOptions (12.0f, juce::Font::bold));
         g.drawText (text, button.reduced (6.0f, 0.0f), juce::Justification::centred);
+    };
+
+    auto drawPreviewSlider = [&] (juce::Rectangle<float> slider, const juce::String& text, float amount)
+    {
+        amount = juce::jlimit (0.0f, 1.0f, amount);
+
+        g.setColour (juce::Colours::white.withAlpha (0.055f));
+        g.fillRoundedRectangle (slider, 6.0f);
+
+        auto fill = slider;
+        fill.setWidth (slider.getWidth() * amount);
+
+        g.setColour (juce::Colours::white.withAlpha (0.18f));
+        g.fillRoundedRectangle (fill, 6.0f);
+
+        g.setColour (juce::Colours::white.withAlpha (0.30f));
+        g.drawRoundedRectangle (slider, 6.0f, 1.0f);
+
+        const auto thumbX = slider.getX() + slider.getWidth() * amount;
+        const auto thumb = juce::Rectangle<float> (thumbX - 3.0f, slider.getY() + 3.0f, 6.0f, slider.getHeight() - 6.0f);
+
+        g.setColour (juce::Colours::white.withAlpha (0.54f));
+        g.fillRoundedRectangle (thumb, 3.0f);
+
+        g.setColour (juce::Colours::white.withAlpha (0.70f));
+        g.setFont (juce::FontOptions (11.0f, juce::Font::bold));
+        g.drawText (text, slider.reduced (7.0f, 0.0f), juce::Justification::centredLeft);
     };
 
     const auto isCirclePreset = previewShape == PreviewShape::rectangle
@@ -1118,18 +1156,20 @@ void MainComponent::drawPreview (juce::Graphics& g, juce::Rectangle<float> area)
     drawShapeButton (cavityButton, "Cavity", previewMode == PreviewMode::cavity);
     drawShapeButton (aoButton, "AO", previewMode == PreviewMode::ambientOcclusion);
 
-    const auto leftAdjustText = previewMode == PreviewMode::material ? "Light-" : "Range-";
-    const auto rightAdjustText = previewMode == PreviewMode::material ? "Light+" : "Range+";
+    const auto rangeAmount = previewMode == PreviewMode::material
+        ? lightAngleDeg / 360.0f
+        : previewMode == PreviewMode::cavity
+            ? (cavityPropagation - 0.04f) / (0.80f - 0.04f)
+            : (ambientOcclusionPropagation - 0.04f) / (0.80f - 0.04f);
 
-    drawShapeButton (rangeMinusButton, leftAdjustText, false);
-    drawShapeButton (rangePlusButton, rightAdjustText, false);
+    const auto rangeText = previewMode == PreviewMode::material
+        ? "Light " + juce::String (juce::roundToInt (lightAngleDeg))
+        : "Range " + juce::String (juce::roundToInt (rangeAmount * 100.0f)) + "%";
 
-    drawShapeButton (glossMinusButton, "Gloss-", false);
-    drawShapeButton (glossPlusButton, "Gloss+", false);
-    drawShapeButton (elevationMinusButton, "Elev-", false);
-    drawShapeButton (elevationPlusButton, "Elev+", false);
-    drawShapeButton (beautyMinusButton, "Depth-", false);
-    drawShapeButton (beautyPlusButton, "Depth+", false);
+    drawPreviewSlider (rangeSlider, rangeText, rangeAmount);
+    drawPreviewSlider (glossSlider, "Gloss " + juce::String (juce::roundToInt (glossAmount * 50.0f)) + "%", glossAmount / 2.0f);
+    drawPreviewSlider (elevationSlider, "Elev " + juce::String (juce::roundToInt (lightElevation * 100.0f)) + "%", (lightElevation - 0.10f) / 0.90f);
+    drawPreviewSlider (depthSlider, "Depth " + juce::String (juce::roundToInt (beautyStrength * 50.0f)) + "%", beautyStrength / 2.0f);
     drawShapeButton (ratioButton, "Ratio " + getAspectText(), previewShape == PreviewShape::rectangle);
     drawShapeButton (cornersButton, "Corner " + getCornerText(), roundedCornerMask != 0);
     drawShapeButton (radiusButton, "Rad " + juce::String (juce::roundToInt (cornerRadiusAmount * 100.0f)), roundedCornerMask != 0);

@@ -45,6 +45,15 @@ private:
         ambientOcclusion
     };
 
+    enum class PreviewSlider
+    {
+        none,
+        range,
+        gloss,
+        elevation,
+        depth
+    };
+
     std::vector<ProfilePoint> profilePoints;
 
     PreviewShape previewShape = PreviewShape::circle;
@@ -67,6 +76,7 @@ private:
 
     int draggedPointIndex = -1;
     int selectedPointIndex = -1;
+    PreviewSlider draggedPreviewSlider = PreviewSlider::none;
 
     juce::Rectangle<float> getProfileArea() const;
     juce::Rectangle<float> getPreviewArea() const;
