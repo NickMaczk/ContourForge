@@ -1136,15 +1136,15 @@ void MainComponent::drawPreview (juce::Graphics& g, juce::Rectangle<float> area)
 
     auto drawShapeGridCell = [&] (juce::Rectangle<float> cell, bool active, bool circular)
     {
-        g.setColour (juce::Colours::white.withAlpha (active ? 0.18f : 0.055f));
+        g.setColour (juce::Colours::white.withAlpha (0.055f));
         g.fillRoundedRectangle (cell, 4.0f);
 
-        g.setColour (juce::Colours::white.withAlpha (active ? 0.78f : 0.22f));
+        g.setColour (juce::Colours::white.withAlpha (0.22f));
         g.drawRoundedRectangle (cell, 4.0f, active ? 1.4f : 1.0f);
 
         auto mark = cell.reduced (5.0f);
 
-        g.setColour (juce::Colours::white.withAlpha (active ? 0.72f : 0.28f));
+        g.setColour (juce::Colours::white.withAlpha (0.28f));
 
         if (circular)
             g.drawEllipse (mark, active ? 1.4f : 1.0f);
