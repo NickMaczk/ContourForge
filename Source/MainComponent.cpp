@@ -204,7 +204,7 @@ void MainComponent::mouseDown (const juce::MouseEvent& e)
 
         if (circleButton.contains (mouse))
         {
-            previewShape = PreviewShape::circle;
+            previewShape = PreviewShape::rectangle;
             aspectPresetIndex = 0;
             roundedCornerMask = 15;
             cornerRadiusAmount = 1.0f;
@@ -1088,7 +1088,12 @@ void MainComponent::drawPreview (juce::Graphics& g, juce::Rectangle<float> area)
         g.drawText (text, button.reduced (6.0f, 0.0f), juce::Justification::centred);
     };
 
-    drawShapeButton (circleButton, "Circle", previewShape == PreviewShape::circle);
+    const auto isCirclePreset = previewShape == PreviewShape::rectangle
+        && aspectPresetIndex == 0
+        && roundedCornerMask == 15
+        && cornerRadiusAmount >= 0.875f;
+
+    drawShapeButton (circleButton, "Circle", previewShape == PreviewShape::circle || isCirclePreset);
     drawShapeButton (squareButton, "Square", previewShape == PreviewShape::rectangle && aspectPresetIndex == 0 && roundedCornerMask == 0);
     drawShapeButton (rectButton, "Rect", previewShape == PreviewShape::rectangle && aspectPresetIndex != 0 && roundedCornerMask == 0);
 
@@ -1357,6 +1362,11 @@ void MainComponent::drawPreview (juce::Graphics& g, juce::Rectangle<float> area)
         renderWidth,
         renderHeight,
         true);
+
+    {
+        juce::Graphics imageGraphics (previewImage);
+        imageGraphics.fillAll (juce::Colour::fromRGB (22, 22, 26));
+    }
 
     auto profileXAtPixel = [&] (float pixelX, float pixelY, float& profileX)
     {
