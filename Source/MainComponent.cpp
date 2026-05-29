@@ -1157,42 +1157,76 @@ void MainComponent::drawPreview (juce::Graphics& g, juce::Rectangle<float> area)
         renderHeight,
         true);
 
-    auto sampleHeightAtPixel = [&] (float pixelX, float pixelY, float& height)
+    auto profileXAtPixel = [&] (float pixelX, float pixelY, float& profileX)
     {
+        if (previewShape == PreviewShape::square || previewShape == PreviewShape::rectangle)
+        {
+            if (! shapeArea.contains (pixelX, pixelY))
+                return false;
+
+            const auto w = shapeArea.getWidth();
+            const auto h = shapeArea.getHeight();
+            const auto side = juce::jmin (w, h);
+            const auto halfSide = side * 0.5f;
+
+            const auto localX = pixelX - shapeArea.getX();
+            const auto localY = pixelY - shapeArea.getY();
+
+            auto virtualX = localX;
+            auto virtualY = localY;
+
+            if (w > h)
+            {
+                if (localX < halfSide)
+                    virtualX = localX;
+                else if (localX > w - halfSide)
+                    virtualX = side - (w - localX);
+                else
+                    virtualX = halfSide;
+
+                virtualY = localY;
+            }
+            else if (h > w)
+            {
+                virtualX = localX;
+
+                if (localY < halfSide)
+                    virtualY = localY;
+                else if (localY > h - halfSide)
+                    virtualY = side - (h - localY);
+                else
+                    virtualY = halfSide;
+            }
+
+            virtualX = juce::jlimit (0.0f, side, virtualX);
+            virtualY = juce::jlimit (0.0f, side, virtualY);
+
+            const auto distanceToEdge = juce::jmin (
+                juce::jmin (virtualX, side - virtualX),
+                juce::jmin (virtualY, side - virtualY));
+
+            profileX = juce::jlimit (0.0f, 1.0f, distanceToEdge / juce::jmax (1.0f, halfSide));
+            return true;
+        }
+
         const auto dx = pixelX - centre.x;
         const auto dy = pixelY - centre.y;
         const auto distance = std::sqrt (dx * dx + dy * dy);
 
-        if (distance <= 0.0001f)
-        {
-            height = heightValueAt (1.0f);
-            return true;
-        }
-
-        const auto angleDeg = normaliseAngle (
-            std::atan2 (dy, dx) * 180.0f / juce::MathConstants<float>::pi + 90.0f);
-
-        float edgeDistance = outerRadius;
-
-        if (previewShape == PreviewShape::square || previewShape == PreviewShape::rectangle)
-        {
-            const auto radians = (angleDeg - 90.0f) * juce::MathConstants<float>::pi / 180.0f;
-            const auto dirX = std::cos (radians);
-            const auto dirY = std::sin (radians);
-
-            const auto halfW = shapeArea.getWidth() * 0.5f;
-            const auto halfH = shapeArea.getHeight() * 0.5f;
-
-            const auto tx = std::abs (dirX) < 0.0001f ? 999999.0f : halfW / std::abs (dirX);
-            const auto ty = std::abs (dirY) < 0.0001f ? 999999.0f : halfH / std::abs (dirY);
-
-            edgeDistance = juce::jmin (tx, ty);
-        }
-
-        if (distance > edgeDistance)
+        if (distance > outerRadius)
             return false;
 
-        const auto profileX = juce::jlimit (0.0f, 1.0f, 1.0f - distance / edgeDistance);
+        profileX = juce::jlimit (0.0f, 1.0f, 1.0f - distance / outerRadius);
+        return true;
+    };
+
+    auto sampleHeightAtPixel = [&] (float pixelX, float pixelY, float& height)
+    {
+        float profileX = 0.0f;
+
+        if (! profileXAtPixel (pixelX, pixelY, profileX))
+            return false;
+
         height = heightValueAt (profileX);
         return true;
     };
@@ -1334,52 +1368,14 @@ void MainComponent::drawPreview (juce::Graphics& g, juce::Rectangle<float> area)
 
             const auto dx = pixelX - centre.x;
             const auto dy = pixelY - centre.y;
-            const auto distance = std::sqrt (dx * dx + dy * dy);
-
-            if (distance <= 0.0001f)
-            {
-                auto colour = colourAt (1.0f, 0.0f);
-
-                if (previewMode == PreviewMode::normalMap)
-                    colour = normalColourAtPixel (pixelX, pixelY, heightValueAt (1.0f));
-                else if (previewMode == PreviewMode::material)
-                    colour = materialColourAtPixel (pixelX, pixelY, 1.0f, heightValueAt (1.0f));
-                else if (previewMode == PreviewMode::ambientOcclusion)
-                {
-                    const auto value = ambientOcclusionAtPixel (pixelX, pixelY, heightValueAt (1.0f));
-                    colour = juce::Colour::fromFloatRGBA (value, value, value, 1.0f);
-                }
-
-                previewImage.setPixelAt (x, y, colour);
-                continue;
-            }
 
             const auto angleDeg = normaliseAngle (
                 std::atan2 (dy, dx) * 180.0f / juce::MathConstants<float>::pi + 90.0f);
 
             float profileX = 0.0f;
 
-            if (previewShape == PreviewShape::square || previewShape == PreviewShape::rectangle)
-            {
-                if (! shapeArea.contains (pixelX, pixelY))
-                    continue;
-
-                const auto distanceToEdge = juce::jmin (
-                    juce::jmin (pixelX - shapeArea.getX(), shapeArea.getRight() - pixelX),
-                    juce::jmin (pixelY - shapeArea.getY(), shapeArea.getBottom() - pixelY));
-
-                const auto maxInset = juce::jmin (shapeArea.getWidth(), shapeArea.getHeight()) * 0.5f;
-                profileX = juce::jlimit (0.0f, 1.0f, distanceToEdge / juce::jmax (1.0f, maxInset));
-            }
-            else
-            {
-                const auto edgeDistance = outerRadius;
-
-                if (distance > edgeDistance)
-                    continue;
-
-                profileX = juce::jlimit (0.0f, 1.0f, 1.0f - distance / edgeDistance);
-            }
+            if (! profileXAtPixel (pixelX, pixelY, profileX))
+                continue;
 
             auto colour = colourAt (profileX, angleDeg);
 
