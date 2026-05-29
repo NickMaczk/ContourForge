@@ -205,13 +205,18 @@ void MainComponent::mouseDown (const juce::MouseEvent& e)
         if (circleButton.contains (mouse))
         {
             previewShape = PreviewShape::circle;
+            aspectPresetIndex = 0;
+            roundedCornerMask = 15;
+            cornerRadiusAmount = 1.0f;
             repaint();
             return;
         }
 
         if (squareButton.contains (mouse))
         {
-            previewShape = PreviewShape::square;
+            previewShape = PreviewShape::rectangle;
+            aspectPresetIndex = 0;
+            roundedCornerMask = 0;
             repaint();
             return;
         }
@@ -219,6 +224,7 @@ void MainComponent::mouseDown (const juce::MouseEvent& e)
         if (rectButton.contains (mouse))
         {
             previewShape = PreviewShape::rectangle;
+            roundedCornerMask = 0;
             repaint();
             return;
         }
@@ -1083,8 +1089,8 @@ void MainComponent::drawPreview (juce::Graphics& g, juce::Rectangle<float> area)
     };
 
     drawShapeButton (circleButton, "Circle", previewShape == PreviewShape::circle);
-    drawShapeButton (squareButton, "Square", previewShape == PreviewShape::square);
-    drawShapeButton (rectButton, "Rect", previewShape == PreviewShape::rectangle);
+    drawShapeButton (squareButton, "Square", previewShape == PreviewShape::rectangle && aspectPresetIndex == 0 && roundedCornerMask == 0);
+    drawShapeButton (rectButton, "Rect", previewShape == PreviewShape::rectangle && aspectPresetIndex != 0 && roundedCornerMask == 0);
 
     g.setColour (baseColour.withAlpha (0.82f));
     g.fillRoundedRectangle (baseButton, 6.0f);
