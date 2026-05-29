@@ -1293,27 +1293,29 @@ void MainComponent::drawPreview (juce::Graphics& g, juce::Rectangle<float> area)
             const auto angleDeg = normaliseAngle (
                 std::atan2 (dy, dx) * 180.0f / juce::MathConstants<float>::pi + 90.0f);
 
-            float edgeDistance = outerRadius;
+            float profileX = 0.0f;
 
             if (previewShape == PreviewShape::square || previewShape == PreviewShape::rectangle)
             {
-                const auto radians = (angleDeg - 90.0f) * juce::MathConstants<float>::pi / 180.0f;
-                const auto dirX = std::cos (radians);
-                const auto dirY = std::sin (radians);
+                if (! shapeArea.contains (pixelX, pixelY))
+                    continue;
 
-                const auto halfW = shapeArea.getWidth() * 0.5f;
-                const auto halfH = shapeArea.getHeight() * 0.5f;
+                const auto distanceToEdge = juce::jmin (
+                    juce::jmin (pixelX - shapeArea.getX(), shapeArea.getRight() - pixelX),
+                    juce::jmin (pixelY - shapeArea.getY(), shapeArea.getBottom() - pixelY));
 
-                const auto tx = std::abs (dirX) < 0.0001f ? 999999.0f : halfW / std::abs (dirX);
-                const auto ty = std::abs (dirY) < 0.0001f ? 999999.0f : halfH / std::abs (dirY);
-
-                edgeDistance = juce::jmin (tx, ty);
+                const auto maxInset = juce::jmin (shapeArea.getWidth(), shapeArea.getHeight()) * 0.5f;
+                profileX = juce::jlimit (0.0f, 1.0f, distanceToEdge / juce::jmax (1.0f, maxInset));
             }
+            else
+            {
+                const auto edgeDistance = outerRadius;
 
-            if (distance > edgeDistance)
-                continue;
+                if (distance > edgeDistance)
+                    continue;
 
-            const auto profileX = juce::jlimit (0.0f, 1.0f, 1.0f - distance / edgeDistance);
+                profileX = juce::jlimit (0.0f, 1.0f, 1.0f - distance / edgeDistance);
+            }
 
             auto colour = colourAt (profileX, angleDeg);
 
