@@ -141,13 +141,15 @@ void MainComponent::mouseDown (const juce::MouseEvent& e)
     }
 
     {
-        auto previewControls = getPreviewArea().reduced (18.0f).removeFromTop (88.0f).removeFromRight (420.0f);
+        auto previewControls = getPreviewArea().reduced (18.0f).removeFromTop (120.0f).removeFromRight (420.0f);
 
         auto shapeRow = previewControls.removeFromTop (24.0f);
         previewControls.removeFromTop (8.0f);
         auto modeRow = previewControls.removeFromTop (24.0f);
         previewControls.removeFromTop (8.0f);
         auto adjustRow = previewControls.removeFromTop (24.0f);
+        previewControls.removeFromTop (8.0f);
+        auto beautyRow = previewControls.removeFromTop (24.0f);
 
         const auto circleButton = shapeRow.removeFromLeft (72.0f);
         shapeRow.removeFromLeft (8.0f);
@@ -178,6 +180,10 @@ void MainComponent::mouseDown (const juce::MouseEvent& e)
         const auto elevationMinusButton = adjustRow.removeFromLeft (58.0f);
         adjustRow.removeFromLeft (6.0f);
         const auto elevationPlusButton = adjustRow.removeFromLeft (58.0f);
+
+        const auto beautyMinusButton = beautyRow.removeFromLeft (72.0f);
+        beautyRow.removeFromLeft (6.0f);
+        const auto beautyPlusButton = beautyRow.removeFromLeft (72.0f);
 
         if (circleButton.contains (mouse))
         {
@@ -322,17 +328,33 @@ void MainComponent::mouseDown (const juce::MouseEvent& e)
             return;
         }
 
-        if (glossMinusButton.contains (mouse))
+        if (elevationMinusButton.contains (mouse))
         {
-            glossAmount = juce::jlimit (0.0f, 2.0f, glossAmount - 0.10f);
+            lightElevation = juce::jlimit (0.10f, 1.0f, lightElevation - 0.06f);
             previewMode = PreviewMode::material;
             repaint();
             return;
         }
 
-        if (glossPlusButton.contains (mouse))
+        if (elevationPlusButton.contains (mouse))
         {
-            glossAmount = juce::jlimit (0.0f, 2.0f, glossAmount + 0.10f);
+            lightElevation = juce::jlimit (0.10f, 1.0f, lightElevation + 0.06f);
+            previewMode = PreviewMode::material;
+            repaint();
+            return;
+        }
+
+        if (beautyMinusButton.contains (mouse))
+        {
+            beautyStrength = juce::jlimit (0.0f, 2.0f, beautyStrength - 0.10f);
+            previewMode = PreviewMode::material;
+            repaint();
+            return;
+        }
+
+        if (beautyPlusButton.contains (mouse))
+        {
+            beautyStrength = juce::jlimit (0.0f, 2.0f, beautyStrength + 0.10f);
             previewMode = PreviewMode::material;
             repaint();
             return;
@@ -551,6 +573,7 @@ juce::var MainComponent::createProjectState() const
     root->setProperty ("lightAngleDeg", lightAngleDeg);
     root->setProperty ("lightElevation", lightElevation);
     root->setProperty ("glossAmount", glossAmount);
+    root->setProperty ("beautyStrength", beautyStrength);
     root->setProperty ("previewQualityDivisor", previewQualityDivisor);
 
     juce::Array<juce::var> points;
@@ -640,10 +663,20 @@ bool MainComponent::applyProjectState (const juce::var& state)
     while (lightAngleDeg >= 360.0f)
         lightAngleDeg -= 360.0f;
 
+    const auto loadedLightElevation = root->getProperty ("lightElevation");
+
+    if (! loadedLightElevation.isVoid())
+        lightElevation = juce::jlimit (0.10f, 1.0f, (float) (double) loadedLightElevation);
+
     const auto loadedGlossAmount = root->getProperty ("glossAmount");
 
     if (! loadedGlossAmount.isVoid())
         glossAmount = juce::jlimit (0.0f, 2.0f, (float) (double) loadedGlossAmount);
+
+    const auto loadedBeautyStrength = root->getProperty ("beautyStrength");
+
+    if (! loadedBeautyStrength.isVoid())
+        beautyStrength = juce::jlimit (0.0f, 2.0f, (float) (double) loadedBeautyStrength);
 
     const auto loadedPreviewQualityDivisor = (int) root->getProperty ("previewQualityDivisor");
 
@@ -762,6 +795,7 @@ void MainComponent::drawPreview (juce::Graphics& g, juce::Rectangle<float> area)
         + " | Light " + juce::String (juce::roundToInt (lightAngleDeg)) + juce::String::fromUTF8 ("\xC2\xB0")
         + " | Elev " + juce::String (juce::roundToInt (lightElevation * 100.0f)) + "%"
         + " | Gloss " + juce::String (juce::roundToInt (glossAmount * 100.0f)) + "%"
+        + " | Depth " + juce::String (juce::roundToInt (beautyStrength * 100.0f)) + "%"
         + " | Drag /" + juce::String (previewQualityDivisor);
 
     auto infoRow = area.reduced (18.0f).removeFromTop (54.0f).removeFromBottom (18.0f);
@@ -771,13 +805,15 @@ void MainComponent::drawPreview (juce::Graphics& g, juce::Rectangle<float> area)
     g.setFont (juce::FontOptions (11.0f));
     g.drawText (infoText, infoRow, juce::Justification::left);
 
-    auto previewControls = area.reduced (18.0f).removeFromTop (88.0f).removeFromRight (420.0f);
+    auto previewControls = area.reduced (18.0f).removeFromTop (120.0f).removeFromRight (420.0f);
 
     auto shapeRow = previewControls.removeFromTop (24.0f);
     previewControls.removeFromTop (8.0f);
     auto modeRow = previewControls.removeFromTop (24.0f);
     previewControls.removeFromTop (8.0f);
     auto adjustRow = previewControls.removeFromTop (24.0f);
+    previewControls.removeFromTop (8.0f);
+    auto beautyRow = previewControls.removeFromTop (24.0f);
 
     const auto circleButton = shapeRow.removeFromLeft (72.0f);
     shapeRow.removeFromLeft (8.0f);
@@ -808,6 +844,10 @@ void MainComponent::drawPreview (juce::Graphics& g, juce::Rectangle<float> area)
     const auto elevationMinusButton = adjustRow.removeFromLeft (58.0f);
     adjustRow.removeFromLeft (6.0f);
     const auto elevationPlusButton = adjustRow.removeFromLeft (58.0f);
+
+    const auto beautyMinusButton = beautyRow.removeFromLeft (72.0f);
+    beautyRow.removeFromLeft (6.0f);
+    const auto beautyPlusButton = beautyRow.removeFromLeft (72.0f);
 
     auto drawShapeButton = [&] (juce::Rectangle<float> button, const juce::String& text, bool selected)
     {
@@ -855,8 +895,10 @@ void MainComponent::drawPreview (juce::Graphics& g, juce::Rectangle<float> area)
     drawShapeButton (glossPlusButton, "Gloss+", false);
     drawShapeButton (elevationMinusButton, "Elev-", false);
     drawShapeButton (elevationPlusButton, "Elev+", false);
+    drawShapeButton (beautyMinusButton, "Depth-", false);
+    drawShapeButton (beautyPlusButton, "Depth+", false);
 
-    auto shapeArea = area.reduced (84.0f, 124.0f);
+    auto shapeArea = area.reduced (84.0f, 144.0f);
     const auto side = juce::jmin (shapeArea.getWidth(), shapeArea.getHeight());
     shapeArea = shapeArea.withSizeKeepingCentre (side, side);
 
@@ -1122,12 +1164,14 @@ void MainComponent::drawPreview (juce::Graphics& g, juce::Rectangle<float> area)
         const auto lightLength = std::sqrt (lx * lx + ly * ly + lz * lz);
         const auto dot = juce::jlimit (0.0f, 1.0f, (nx * lx + ny * ly + nz * lz) / lightLength);
 
-        const auto heightLift = 0.86f + heightValueAt (profileX) * 0.22f;
-        const auto cavityShade = 0.70f + cavityAt (profileX) * 0.30f;
-        const auto aoShade = 0.66f + ambientOcclusionAtPixel (pixelX, pixelY, currentHeight) * 0.34f;
-        const auto diffuse = 0.34f + dot * 0.78f;
+        const auto strength = beautyStrength;
 
-        const auto shade = juce::jlimit (0.0f, 1.35f, diffuse * heightLift * cavityShade * aoShade);
+        const auto heightLift = 1.0f + (heightValueAt (profileX) - 0.5f) * 0.44f * strength;
+        const auto cavityShade = 1.0f - (1.0f - cavityAt (profileX)) * 0.78f * strength;
+        const auto aoShade = 1.0f - (1.0f - ambientOcclusionAtPixel (pixelX, pixelY, currentHeight)) * 0.74f * strength;
+        const auto diffuse = 0.34f + dot * (0.54f + 0.36f * strength);
+
+        const auto shade = juce::jlimit (0.0f, 1.65f, diffuse * heightLift * cavityShade * aoShade);
         const auto specPower = juce::jmap (glossAmount, 0.0f, 2.0f, 8.0f, 170.0f);
         const auto specStrength = juce::jmap (glossAmount, 0.0f, 2.0f, 0.02f, 1.15f);
         const auto spec = std::pow (dot, specPower) * specStrength;
