@@ -2,7 +2,7 @@
 
 #include <JuceHeader.h>
 
-class MainComponent : public juce::Component
+class MainComponent : public juce::Component, private juce::ChangeListener
 {
 public:
     MainComponent();
@@ -17,6 +17,8 @@ public:
     void mouseDoubleClick (const juce::MouseEvent&) override;
 
 private:
+    void changeListenerCallback (juce::ChangeBroadcaster* source) override;
+
     struct ProfilePoint
     {
         float x = 0.0f; // 0..1, from outside to inside
@@ -54,7 +56,10 @@ private:
         depth,
         cavityLayer,
         aoLayer,
+        shadowLayer,
         specularLayer,
+        specularCatch,
+        chamferLayer,
         degradation,
         radius
     };
@@ -72,7 +77,10 @@ private:
     float beautyStrength = 1.0f;
     float cavityLayerOpacity = 1.0f;
     float aoLayerOpacity = 1.0f;
+    float shadowLayerAmount = 0.0f;
     float specularLayerAmount = 1.0f;
+    float specularCatchAmount = 0.60f;
+    float chamferAmount = 0.0f;
     int gridDivisor = 0;
     int aspectPresetIndex = 2; // default 3:1
     int roundedCornerMask = 0; // TL=1, TR=2, BR=4, BL=8

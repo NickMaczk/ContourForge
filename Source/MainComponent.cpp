@@ -60,6 +60,16 @@ void MainComponent::resized()
 {
 }
 
+void MainComponent::changeListenerCallback (juce::ChangeBroadcaster* source)
+{
+    if (auto* selector = dynamic_cast<juce::ColourSelector*> (source))
+    {
+        baseColour = selector->getCurrentColour();
+        previewMode = PreviewMode::material;
+        repaint();
+    }
+}
+
 juce::Rectangle<float> MainComponent::getSaveButtonArea() const
 {
     auto r = getLocalBounds().toFloat().reduced (24.0f);
@@ -180,7 +190,10 @@ void MainComponent::mouseDown (const juce::MouseEvent& e)
         const auto depthSlider = nextToolRow();
         const auto cavityLayerSlider = nextToolRow();
         const auto aoLayerSlider = nextToolRow();
+        const auto shadowLayerSlider = nextToolRow();
         const auto specularLayerSlider = nextToolRow();
+        const auto specularCatchSlider = nextToolRow();
+        const auto chamferSlider = nextToolRow();
         const auto glossSlider = nextToolRow();
 
         auto ratioRow = nextToolRow();
@@ -231,9 +244,24 @@ void MainComponent::mouseDown (const juce::MouseEvent& e)
                 aoLayerOpacity = amount;
                 previewMode = PreviewMode::material;
             }
+            else if (slider == PreviewSlider::shadowLayer)
+            {
+                shadowLayerAmount = amount;
+                previewMode = PreviewMode::material;
+            }
             else if (slider == PreviewSlider::specularLayer)
             {
                 specularLayerAmount = amount;
+                previewMode = PreviewMode::material;
+            }
+            else if (slider == PreviewSlider::specularCatch)
+            {
+                specularCatchAmount = amount;
+                previewMode = PreviewMode::material;
+            }
+            else if (slider == PreviewSlider::chamferLayer)
+            {
+                chamferAmount = amount;
                 previewMode = PreviewMode::material;
             }
             else if (slider == PreviewSlider::degradation)
@@ -306,29 +334,21 @@ void MainComponent::mouseDown (const juce::MouseEvent& e)
 
         if (baseButton.contains (mouse))
         {
-            const std::vector<juce::Colour> baseColours
-            {
-                juce::Colour::fromRGB (170, 146, 105),
-                juce::Colour::fromRGB (120, 120, 126),
-                juce::Colour::fromRGB (205, 205, 198),
-                juce::Colour::fromRGB (96, 72, 54),
-                juce::Colour::fromRGB (98, 125, 150),
-                juce::Colour::fromRGB (150, 82, 74),
-                juce::Colour::fromRGB (34, 34, 38)
-            };
+            auto selector = std::make_unique<juce::ColourSelector> (
+                juce::ColourSelector::showColourAtTop
+                | juce::ColourSelector::showSliders
+                | juce::ColourSelector::showColourspace);
 
-            int nextIndex = 0;
+            selector->setName ("Base Color");
+            selector->setCurrentColour (baseColour);
+            selector->addChangeListener (this);
+            selector->setSize (320, 420);
 
-            for (int i = 0; i < (int) baseColours.size(); ++i)
-            {
-                if (baseColours[(size_t) i].getARGB() == baseColour.getARGB())
-                {
-                    nextIndex = (i + 1) % (int) baseColours.size();
-                    break;
-                }
-            }
+            juce::CallOutBox::launchAsynchronously (
+                std::move (selector),
+                baseButton.toNearestInt(),
+                this);
 
-            baseColour = baseColours[(size_t) nextIndex];
             previewMode = PreviewMode::material;
             repaint();
             return;
@@ -430,10 +450,31 @@ void MainComponent::mouseDown (const juce::MouseEvent& e)
             return;
         }
 
+        if (shadowLayerSlider.contains (mouse))
+        {
+            draggedPreviewSlider = PreviewSlider::shadowLayer;
+            setPreviewSliderValue (draggedPreviewSlider, shadowLayerSlider, mouse.x);
+            return;
+        }
+
         if (specularLayerSlider.contains (mouse))
         {
             draggedPreviewSlider = PreviewSlider::specularLayer;
             setPreviewSliderValue (draggedPreviewSlider, specularLayerSlider, mouse.x);
+            return;
+        }
+
+        if (specularCatchSlider.contains (mouse))
+        {
+            draggedPreviewSlider = PreviewSlider::specularCatch;
+            setPreviewSliderValue (draggedPreviewSlider, specularCatchSlider, mouse.x);
+            return;
+        }
+
+        if (chamferSlider.contains (mouse))
+        {
+            draggedPreviewSlider = PreviewSlider::chamferLayer;
+            setPreviewSliderValue (draggedPreviewSlider, chamferSlider, mouse.x);
             return;
         }
 
@@ -527,7 +568,10 @@ void MainComponent::mouseDrag (const juce::MouseEvent& e)
         const auto depthSlider = nextToolRow();
         const auto cavityLayerSlider = nextToolRow();
         const auto aoLayerSlider = nextToolRow();
+        const auto shadowLayerSlider = nextToolRow();
         const auto specularLayerSlider = nextToolRow();
+        const auto specularCatchSlider = nextToolRow();
+        const auto chamferSlider = nextToolRow();
         const auto glossSlider = nextToolRow();
 
         juce::Rectangle<float> sliderArea;
@@ -544,8 +588,14 @@ void MainComponent::mouseDrag (const juce::MouseEvent& e)
             sliderArea = cavityLayerSlider;
         else if (draggedPreviewSlider == PreviewSlider::aoLayer)
             sliderArea = aoLayerSlider;
+        else if (draggedPreviewSlider == PreviewSlider::shadowLayer)
+            sliderArea = shadowLayerSlider;
         else if (draggedPreviewSlider == PreviewSlider::specularLayer)
             sliderArea = specularLayerSlider;
+        else if (draggedPreviewSlider == PreviewSlider::specularCatch)
+            sliderArea = specularCatchSlider;
+        else if (draggedPreviewSlider == PreviewSlider::chamferLayer)
+            sliderArea = chamferSlider;
         else if (draggedPreviewSlider == PreviewSlider::degradation)
             sliderArea = degradationSlider;
         else if (draggedPreviewSlider == PreviewSlider::radius)
@@ -590,9 +640,24 @@ void MainComponent::mouseDrag (const juce::MouseEvent& e)
             aoLayerOpacity = amount;
             previewMode = PreviewMode::material;
         }
+        else if (draggedPreviewSlider == PreviewSlider::shadowLayer)
+        {
+            shadowLayerAmount = amount;
+            previewMode = PreviewMode::material;
+        }
         else if (draggedPreviewSlider == PreviewSlider::specularLayer)
         {
             specularLayerAmount = amount;
+            previewMode = PreviewMode::material;
+        }
+        else if (draggedPreviewSlider == PreviewSlider::specularCatch)
+        {
+            specularCatchAmount = amount;
+            previewMode = PreviewMode::material;
+        }
+        else if (draggedPreviewSlider == PreviewSlider::chamferLayer)
+        {
+            chamferAmount = amount;
             previewMode = PreviewMode::material;
         }
         else if (draggedPreviewSlider == PreviewSlider::degradation)
@@ -807,7 +872,10 @@ juce::var MainComponent::createProjectState() const
     root->setProperty ("beautyStrength", beautyStrength);
     root->setProperty ("cavityLayerOpacity", cavityLayerOpacity);
     root->setProperty ("aoLayerOpacity", aoLayerOpacity);
+    root->setProperty ("shadowLayerAmount", shadowLayerAmount);
     root->setProperty ("specularLayerAmount", specularLayerAmount);
+    root->setProperty ("specularCatchAmount", specularCatchAmount);
+    root->setProperty ("chamferAmount", chamferAmount);
     root->setProperty ("previewQualityDivisor", previewQualityDivisor);
     root->setProperty ("gridDivisor", gridDivisor);
     root->setProperty ("aspectPresetIndex", aspectPresetIndex);
@@ -930,10 +998,25 @@ bool MainComponent::applyProjectState (const juce::var& state)
     if (! loadedAoLayerOpacity.isVoid())
         aoLayerOpacity = juce::jlimit (0.0f, 1.0f, (float) (double) loadedAoLayerOpacity);
 
+    const auto loadedShadowLayerAmount = root->getProperty ("shadowLayerAmount");
+
+    if (! loadedShadowLayerAmount.isVoid())
+        shadowLayerAmount = juce::jlimit (0.0f, 1.0f, (float) (double) loadedShadowLayerAmount);
+
     const auto loadedSpecularLayerAmount = root->getProperty ("specularLayerAmount");
 
     if (! loadedSpecularLayerAmount.isVoid())
         specularLayerAmount = juce::jlimit (0.0f, 1.0f, (float) (double) loadedSpecularLayerAmount);
+
+    const auto loadedSpecularCatchAmount = root->getProperty ("specularCatchAmount");
+
+    if (! loadedSpecularCatchAmount.isVoid())
+        specularCatchAmount = juce::jlimit (0.0f, 1.0f, (float) (double) loadedSpecularCatchAmount);
+
+    const auto loadedChamferAmount = root->getProperty ("chamferAmount");
+
+    if (! loadedChamferAmount.isVoid())
+        chamferAmount = juce::jlimit (0.0f, 1.0f, (float) (double) loadedChamferAmount);
 
     const auto loadedPreviewQualityDivisor = (int) root->getProperty ("previewQualityDivisor");
 
@@ -1182,7 +1265,10 @@ void MainComponent::drawPreview (juce::Graphics& g, juce::Rectangle<float> area)
         const auto depthSlider = nextToolRow();
         const auto cavityLayerSlider = nextToolRow();
         const auto aoLayerSlider = nextToolRow();
+        const auto shadowLayerSlider = nextToolRow();
         const auto specularLayerSlider = nextToolRow();
+        const auto specularCatchSlider = nextToolRow();
+        const auto chamferSlider = nextToolRow();
         const auto glossSlider = nextToolRow();
 
         auto ratioRow = nextToolRow();
@@ -1240,6 +1326,13 @@ void MainComponent::drawPreview (juce::Graphics& g, juce::Rectangle<float> area)
     drawShapeButton (circleButton, "Circle", previewShape == PreviewShape::circle || isCirclePreset);
     drawShapeButton (squareButton, "Square", previewShape == PreviewShape::rectangle && aspectPresetIndex == 0 && roundedCornerMask == 0);
     drawShapeButton (rectButton, "Rect", previewShape == PreviewShape::rectangle && aspectPresetIndex != 0 && roundedCornerMask == 0);
+    drawShapeButton (gridButton, gridDivisor == 0 ? "Grid Off" : "Grid /" + juce::String (gridDivisor), gridDivisor > 0);
+
+    drawShapeButton (heightButton, "Height", previewMode == PreviewMode::heightMap);
+    drawShapeButton (normalButton, "Normal", previewMode == PreviewMode::normalMap);
+    drawShapeButton (materialButton, "Beauty", previewMode == PreviewMode::material);
+    drawShapeButton (cavityButton, "Cavity", previewMode == PreviewMode::cavity);
+    drawShapeButton (aoButton, "AO", previewMode == PreviewMode::ambientOcclusion);
 
     g.setColour (baseColour.withAlpha (0.82f));
     g.fillRoundedRectangle (baseButton, 6.0f);
@@ -1276,7 +1369,10 @@ void MainComponent::drawPreview (juce::Graphics& g, juce::Rectangle<float> area)
     drawPreviewSlider (depthSlider, "Height layer " + juce::String (juce::roundToInt (beautyStrength * 50.0f)) + "%", beautyStrength / 2.0f);
     drawPreviewSlider (cavityLayerSlider, "Cavity layer " + juce::String (juce::roundToInt (cavityLayerOpacity * 100.0f)) + "%", cavityLayerOpacity);
     drawPreviewSlider (aoLayerSlider, "AO layer " + juce::String (juce::roundToInt (aoLayerOpacity * 100.0f)) + "%", aoLayerOpacity);
+    drawPreviewSlider (shadowLayerSlider, "Shadow " + juce::String (juce::roundToInt (shadowLayerAmount * 100.0f)) + "%", shadowLayerAmount);
     drawPreviewSlider (specularLayerSlider, "Specular " + juce::String (juce::roundToInt (specularLayerAmount * 100.0f)) + "%", specularLayerAmount);
+    drawPreviewSlider (specularCatchSlider, "Spec catch " + juce::String (juce::roundToInt (specularCatchAmount * 100.0f)) + "%", specularCatchAmount);
+    drawPreviewSlider (chamferSlider, "Mini chamfer " + juce::String (juce::roundToInt (chamferAmount * 100.0f)) + "%", chamferAmount);
     drawPreviewSlider (glossSlider, "Glossiness " + juce::String (juce::roundToInt (glossAmount * 50.0f)) + "%", glossAmount / 2.0f);
 
     drawShapeButton (ratioButton, "Ratio " + getAspectText(), previewShape == PreviewShape::rectangle);
@@ -1411,9 +1507,78 @@ void MainComponent::drawPreview (juce::Graphics& g, juce::Rectangle<float> area)
         return angle;
     };
 
+    std::vector<ProfilePoint> renderProfilePoints;
+
+    {
+        const auto chamfer = juce::jlimit (0.0f, 1.0f, chamferAmount);
+
+        if (chamfer <= 0.0001f || profilePoints.size() < 3)
+        {
+            renderProfilePoints = profilePoints;
+        }
+        else
+        {
+            renderProfilePoints.reserve (profilePoints.size() * 2);
+            renderProfilePoints.push_back (profilePoints.front());
+
+            const auto cutAmount = chamfer * 0.45f;
+
+            auto lerpPoint = [] (const ProfilePoint& from, const ProfilePoint& to, float amount)
+            {
+                ProfilePoint result;
+                result.x = from.x + (to.x - from.x) * amount;
+                result.y = from.y + (to.y - from.y) * amount;
+                return result;
+            };
+
+            for (int i = 1; i < (int) profilePoints.size() - 1; ++i)
+            {
+                const auto& previous = profilePoints[(size_t) i - 1];
+                const auto& current  = profilePoints[(size_t) i];
+                const auto& next     = profilePoints[(size_t) i + 1];
+
+                const auto leftPoint  = lerpPoint (current, previous, cutAmount);
+                const auto rightPoint = lerpPoint (current, next, cutAmount);
+
+                renderProfilePoints.push_back (leftPoint);
+                renderProfilePoints.push_back (rightPoint);
+            }
+
+            renderProfilePoints.push_back (profilePoints.back());
+        }
+    }
+
+    auto sampleRenderProfileAt = [&] (float x)
+    {
+        x = juce::jlimit (0.0f, 1.0f, x);
+
+        for (int i = 0; i < (int) renderProfilePoints.size() - 1; ++i)
+        {
+            const auto& a = renderProfilePoints[(size_t) i];
+            const auto& b = renderProfilePoints[(size_t) i + 1];
+
+            if (x >= a.x && x <= b.x)
+            {
+                const auto amount = (x - a.x) / juce::jmax (0.0001f, b.x - a.x);
+
+                return SampledProfilePoint
+                {
+                    x,
+                    juce::jmap (amount, a.y, b.y)
+                };
+            }
+        }
+
+        return SampledProfilePoint
+        {
+            renderProfilePoints.back().x,
+            renderProfilePoints.back().y
+        };
+    };
+
     auto heightValueAt = [&] (float profileX)
     {
-        const auto sample = sampleProfileAt (profileX);
+        const auto sample = sampleRenderProfileAt (profileX);
         return juce::jlimit (0.0f, 1.0f, sample.y);
     };
 
@@ -1648,7 +1813,13 @@ void MainComponent::drawPreview (juce::Graphics& g, juce::Rectangle<float> area)
 
     auto ambientOcclusionAtPixel = [&] (float pixelX, float pixelY, float currentHeight)
     {
-        const auto radiusPx = juce::jmap (ambientOcclusionPropagation, 0.04f, 0.80f, 4.0f, 56.0f);
+        const auto shapeSize = juce::jmax (1.0f, juce::jmin (shapeArea.getWidth(), shapeArea.getHeight()));
+
+        // Size-relative AO, so small and large renders keep the same visual behaviour.
+        const auto radiusPx = shapeSize * juce::jmap (
+            ambientOcclusionPropagation,
+            0.04f, 0.80f,
+            0.012f, 0.180f);
 
         constexpr int ringCount = 4;
         constexpr int directionCount = 12;
@@ -1694,7 +1865,10 @@ void MainComponent::drawPreview (juce::Graphics& g, juce::Rectangle<float> area)
     auto normalAtPixel = [&] (float pixelX, float pixelY, float currentHeight,
                               float& nx, float& ny, float& nz)
     {
-        constexpr float offset = 1.5f;
+        const auto shapeSize = juce::jmax (1.0f, juce::jmin (shapeArea.getWidth(), shapeArea.getHeight()));
+
+        // Keep normal/specular behaviour consistent when the preview is rendered small or large.
+        const auto offset = juce::jlimit (0.35f, 24.0f, shapeSize * 0.0125f);
         constexpr float strength = 3.2f;
 
         float left = currentHeight;
@@ -1760,14 +1934,64 @@ void MainComponent::drawPreview (juce::Graphics& g, juce::Rectangle<float> area)
         const auto cavityLayer = applyLayerOpacity (cavityAt (profileX), cavityOpacity);
         const auto aoLayer = applyLayerOpacity (ambientOcclusionAtPixel (pixelX, pixelY, currentHeight), aoOpacity);
 
-        const auto layerShade = juce::jlimit (0.0f, 1.0f, heightLayer * cavityLayer * aoLayer);
-
         const auto lightRadians = (lightAngleDeg - 90.0f) * juce::MathConstants<float>::pi / 180.0f;
         const auto lz = juce::jmap (lightElevation, 0.10f, 1.0f, 0.20f, 0.95f);
         const auto sideAmount = std::sqrt (juce::jmax (0.0f, 1.0f - lz * lz));
 
         const auto lx = std::cos (lightRadians) * sideAmount;
         const auto ly = std::sin (lightRadians) * sideAmount;
+
+        auto directionalShadowAtPixel = [&]()
+        {
+            if (shadowLayerAmount <= 0.0001f)
+                return 1.0f;
+
+            constexpr int stepCount = 18;
+
+            const auto shapeSize = juce::jmax (1.0f, juce::jmin (shapeArea.getWidth(), shapeArea.getHeight()));
+            const auto shadowLengthPx = shapeSize * juce::jmap (lightElevation, 0.10f, 1.0f, 0.42f, 0.08f);
+
+            const auto horizontalLight = juce::jmax (0.0001f, sideAmount);
+            const auto lightSlope = (lz / horizontalLight) * 0.38f;
+
+            float strongestShadow = 0.0f;
+
+            for (int i = 1; i <= stepCount; ++i)
+            {
+                const auto t = (float) i / (float) stepCount;
+                const auto distance = shadowLengthPx * t;
+
+                float sampleHeight = 0.0f;
+
+                const auto hasSample = sampleHeightAtPixel (
+                    pixelX + lx * distance,
+                    pixelY - ly * distance,
+                    sampleHeight);
+
+                if (! hasSample)
+                    continue;
+
+                const auto distanceInShape = distance / shapeSize;
+
+                // Height ray test: farther samples must be proportionally higher
+                // to block the incoming light.
+                const auto rayHeight = currentHeight + distanceInShape * lightSlope + 0.018f;
+                const auto blocker = sampleHeight - rayHeight;
+
+                if (blocker <= 0.0f)
+                    continue;
+
+                const auto softness = 1.0f - t * 0.58f;
+                const auto cast = juce::jlimit (0.0f, 1.0f, blocker * 7.5f) * softness;
+
+                strongestShadow = juce::jmax (strongestShadow, cast);
+            }
+
+            return 1.0f - strongestShadow * shadowLayerAmount;
+        };
+
+        const auto shadowLayer = directionalShadowAtPixel();
+        const auto layerShade = juce::jlimit (0.0f, 1.0f, heightLayer * cavityLayer * aoLayer * shadowLayer);
 
         const auto hx = lx;
         const auto hy = ly;
@@ -1779,8 +2003,17 @@ void MainComponent::drawPreview (juce::Graphics& g, juce::Rectangle<float> area)
 
         const auto gloss01 = juce::jlimit (0.0f, 1.0f, glossAmount / 2.0f);
 
-        const auto specPower = juce::jmap (gloss01, 0.0f, 1.0f, 4.0f, 96.0f);
-        const auto specular = std::pow (specDot, specPower) * specularLayerAmount * 2.4f;
+        // Artistic specular catch.
+        // Lower threshold = highlights appear from wider / less perfect angles.
+        const auto specularCatchThreshold = juce::jmap (specularCatchAmount, 0.0f, 1.0f, 0.55f, 0.02f);
+
+        const auto caughtSpecDot = juce::jlimit (0.0f, 1.0f,
+            (specDot - specularCatchThreshold) / (1.0f - specularCatchThreshold));
+
+        const auto specPower = juce::jmap (gloss01, 0.0f, 1.0f, 2.0f, 64.0f);
+        const auto specStrength = juce::jmap (gloss01, 0.0f, 1.0f, 0.65f, 3.6f);
+
+        const auto specular = std::pow (caughtSpecDot, specPower) * specularLayerAmount * specStrength;
 
         return juce::Colour::fromFloatRGBA (
             juce::jlimit (0.0f, 1.0f, baseColour.getFloatRed()   * layerShade + specular),
@@ -1790,7 +2023,10 @@ void MainComponent::drawPreview (juce::Graphics& g, juce::Rectangle<float> area)
     };
 
 
-    for (int y = 0; y < previewImage.getHeight(); ++y)
+    {
+        juce::Image::BitmapData previewPixels (previewImage, juce::Image::BitmapData::writeOnly);
+
+        for (int y = 0; y < previewImage.getHeight(); ++y)
     {
         for (int x = 0; x < previewImage.getWidth(); ++x)
         {
@@ -1823,8 +2059,11 @@ void MainComponent::drawPreview (juce::Graphics& g, juce::Rectangle<float> area)
                 colour = juce::Colour::fromFloatRGBA (value, value, value, 1.0f);
             }
 
-            previewImage.setPixelAt (x, y, colour);
+            auto* pixel = reinterpret_cast<juce::PixelARGB*> (previewPixels.getPixelPointer (x, y));
+            pixel->setARGB (colour.getAlpha(), colour.getRed(), colour.getGreen(), colour.getBlue());
         }
+    }
+
     }
 
     g.setOpacity (1.0f);
