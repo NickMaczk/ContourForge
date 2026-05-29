@@ -58,6 +58,8 @@ private:
     float beautyStrength = 1.0f;
     int gridDivisor = 0;
     int aspectPresetIndex = 2; // default 3:1
+    int roundedCornerMask = 0; // TL=1, TR=2, BR=4, BL=8
+    float cornerRadiusAmount = 0.50f;
     int previewQualityDivisor = 2;
 
     juce::String statusText;

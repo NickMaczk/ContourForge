@@ -190,6 +190,10 @@ void MainComponent::mouseDown (const juce::MouseEvent& e)
         const auto beautyPlusButton = beautyRow.removeFromLeft (72.0f);
         beautyRow.removeFromLeft (6.0f);
         const auto ratioButton = beautyRow.removeFromLeft (96.0f);
+        beautyRow.removeFromLeft (6.0f);
+        const auto cornersButton = beautyRow.removeFromLeft (94.0f);
+        beautyRow.removeFromLeft (6.0f);
+        const auto radiusButton = beautyRow.removeFromLeft (78.0f);
 
         if (circleButton.contains (mouse))
         {
@@ -388,6 +392,39 @@ void MainComponent::mouseDown (const juce::MouseEvent& e)
         if (ratioButton.contains (mouse))
         {
             aspectPresetIndex = (aspectPresetIndex + 1) % 7;
+            previewShape = PreviewShape::rectangle;
+            repaint();
+            return;
+        }
+
+        if (cornersButton.contains (mouse))
+        {
+            const int masks[] { 0, 15, 3, 12, 9, 6, 1, 2, 4, 8 };
+
+            int currentIndex = 0;
+
+            for (int i = 0; i < 10; ++i)
+            {
+                if (masks[i] == roundedCornerMask)
+                {
+                    currentIndex = i;
+                    break;
+                }
+            }
+
+            roundedCornerMask = masks[(currentIndex + 1) % 10];
+            previewShape = PreviewShape::rectangle;
+            repaint();
+            return;
+        }
+
+        if (radiusButton.contains (mouse))
+        {
+            cornerRadiusAmount = cornerRadiusAmount < 0.375f ? 0.50f
+                : cornerRadiusAmount < 0.625f ? 0.75f
+                : cornerRadiusAmount < 0.875f ? 1.00f
+                : 0.25f;
+
             previewShape = PreviewShape::rectangle;
             repaint();
             return;
@@ -628,6 +665,8 @@ juce::var MainComponent::createProjectState() const
     root->setProperty ("previewQualityDivisor", previewQualityDivisor);
     root->setProperty ("gridDivisor", gridDivisor);
     root->setProperty ("aspectPresetIndex", aspectPresetIndex);
+    root->setProperty ("roundedCornerMask", roundedCornerMask);
+    root->setProperty ("cornerRadiusAmount", cornerRadiusAmount);
 
     juce::Array<juce::var> points;
 
@@ -750,6 +789,16 @@ bool MainComponent::applyProjectState (const juce::var& state)
 
     if (loadedAspectPresetIndex >= 0 && loadedAspectPresetIndex < 7)
         aspectPresetIndex = loadedAspectPresetIndex;
+
+    const auto loadedRoundedCornerMask = (int) root->getProperty ("roundedCornerMask");
+
+    if (loadedRoundedCornerMask >= 0 && loadedRoundedCornerMask <= 15)
+        roundedCornerMask = loadedRoundedCornerMask;
+
+    const auto loadedCornerRadiusAmount = root->getProperty ("cornerRadiusAmount");
+
+    if (! loadedCornerRadiusAmount.isVoid())
+        cornerRadiusAmount = juce::jlimit (0.25f, 1.0f, (float) (double) loadedCornerRadiusAmount);
 
     selectedPointIndex = -1;
     draggedPointIndex = -1;
@@ -887,6 +936,26 @@ void MainComponent::drawPreview (juce::Graphics& g, juce::Rectangle<float> area)
         return juce::String ("3:1");
     };
 
+    auto getCornerText = [&]()
+    {
+        switch (roundedCornerMask)
+        {
+            case 0: return juce::String ("Sharp");
+            case 15: return juce::String ("All");
+            case 3: return juce::String ("Top");
+            case 12: return juce::String ("Bottom");
+            case 9: return juce::String ("Left");
+            case 6: return juce::String ("Right");
+            case 1: return juce::String ("TL");
+            case 2: return juce::String ("TR");
+            case 4: return juce::String ("BR");
+            case 8: return juce::String ("BL");
+            default: break;
+        }
+
+        return juce::String ("Custom");
+    };
+
     const auto infoText =
         modeText
         + " | Light " + juce::String (juce::roundToInt (lightAngleDeg)) + juce::String::fromUTF8 ("\xC2\xB0")
@@ -895,6 +964,8 @@ void MainComponent::drawPreview (juce::Graphics& g, juce::Rectangle<float> area)
         + " | Depth " + juce::String (juce::roundToInt (beautyStrength * 100.0f)) + "%"
         + " | Grid " + (gridDivisor == 0 ? juce::String ("Off") : "/" + juce::String (gridDivisor))
         + " | Ratio " + getAspectText()
+        + " | Corners " + getCornerText()
+        + " | Rad " + juce::String (juce::roundToInt (cornerRadiusAmount * 100.0f)) + "%"
         + " | Drag /" + juce::String (previewQualityDivisor);
 
     auto infoRow = area.reduced (18.0f).removeFromTop (54.0f).removeFromBottom (18.0f);
@@ -953,6 +1024,10 @@ void MainComponent::drawPreview (juce::Graphics& g, juce::Rectangle<float> area)
     const auto beautyPlusButton = beautyRow.removeFromLeft (72.0f);
     beautyRow.removeFromLeft (6.0f);
     const auto ratioButton = beautyRow.removeFromLeft (96.0f);
+    beautyRow.removeFromLeft (6.0f);
+    const auto cornersButton = beautyRow.removeFromLeft (94.0f);
+    beautyRow.removeFromLeft (6.0f);
+    const auto radiusButton = beautyRow.removeFromLeft (78.0f);
 
     auto drawShapeButton = [&] (juce::Rectangle<float> button, const juce::String& text, bool selected)
     {
@@ -1005,6 +1080,8 @@ void MainComponent::drawPreview (juce::Graphics& g, juce::Rectangle<float> area)
     drawShapeButton (beautyMinusButton, "Depth-", false);
     drawShapeButton (beautyPlusButton, "Depth+", false);
     drawShapeButton (ratioButton, "Ratio " + getAspectText(), previewShape == PreviewShape::rectangle);
+    drawShapeButton (cornersButton, "Corner " + getCornerText(), roundedCornerMask != 0);
+    drawShapeButton (radiusButton, "Rad " + juce::String (juce::roundToInt (cornerRadiusAmount * 100.0f)), roundedCornerMask != 0);
 
     auto shapeArea = area.reduced (84.0f, 144.0f);
 
@@ -1201,9 +1278,63 @@ void MainComponent::drawPreview (juce::Graphics& g, juce::Rectangle<float> area)
             virtualX = juce::jlimit (0.0f, side, virtualX);
             virtualY = juce::jlimit (0.0f, side, virtualY);
 
-            const auto distanceToEdge = juce::jmin (
+            const auto radius = juce::jlimit (0.0f, halfSide, halfSide * cornerRadiusAmount);
+
+            auto cornerDistanceToBorder = [&] (float cx, float cy)
+            {
+                const auto dx = virtualX - cx;
+                const auto dy = virtualY - cy;
+                const auto d = std::sqrt (dx * dx + dy * dy);
+
+                if (d > radius)
+                    return -1.0f;
+
+                return radius - d;
+            };
+
+            auto distanceToEdge = juce::jmin (
                 juce::jmin (virtualX, side - virtualX),
                 juce::jmin (virtualY, side - virtualY));
+
+            if (roundedCornerMask != 0 && radius > 0.0001f)
+            {
+                if ((roundedCornerMask & 1) != 0 && virtualX < radius && virtualY < radius)
+                {
+                    const auto d = cornerDistanceToBorder (radius, radius);
+
+                    if (d < 0.0f)
+                        return false;
+
+                    distanceToEdge = d;
+                }
+                else if ((roundedCornerMask & 2) != 0 && virtualX > side - radius && virtualY < radius)
+                {
+                    const auto d = cornerDistanceToBorder (side - radius, radius);
+
+                    if (d < 0.0f)
+                        return false;
+
+                    distanceToEdge = d;
+                }
+                else if ((roundedCornerMask & 4) != 0 && virtualX > side - radius && virtualY > side - radius)
+                {
+                    const auto d = cornerDistanceToBorder (side - radius, side - radius);
+
+                    if (d < 0.0f)
+                        return false;
+
+                    distanceToEdge = d;
+                }
+                else if ((roundedCornerMask & 8) != 0 && virtualX < radius && virtualY > side - radius)
+                {
+                    const auto d = cornerDistanceToBorder (radius, side - radius);
+
+                    if (d < 0.0f)
+                        return false;
+
+                    distanceToEdge = d;
+                }
+            }
 
             profileX = juce::jlimit (0.0f, 1.0f, distanceToEdge / juce::jmax (1.0f, halfSide));
             return true;
@@ -1408,6 +1539,8 @@ void MainComponent::drawPreview (juce::Graphics& g, juce::Rectangle<float> area)
 
     if (previewShape == PreviewShape::circle)
         g.drawEllipse (shapeArea, 1.0f);
+    else if (roundedCornerMask == 15)
+        g.drawRoundedRectangle (shapeArea, juce::jmin (shapeArea.getWidth(), shapeArea.getHeight()) * 0.5f * cornerRadiusAmount, 1.0f);
     else
         g.drawRect (shapeArea, 1.0f);
 
