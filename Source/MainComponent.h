@@ -51,7 +51,9 @@ private:
         range,
         gloss,
         elevation,
-        depth
+        depth,
+        degradation,
+        radius
     };
 
     std::vector<ProfilePoint> profilePoints;

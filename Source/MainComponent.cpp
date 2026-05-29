@@ -159,7 +159,7 @@ void MainComponent::mouseDown (const juce::MouseEvent& e)
         shapeRow.removeFromLeft (8.0f);
         const auto baseButton = shapeRow.removeFromLeft (76.0f);
         shapeRow.removeFromLeft (8.0f);
-        const auto previewQualityButton = shapeRow.removeFromLeft (92.0f);
+        const auto degradationSlider = shapeRow.removeFromLeft (92.0f);
         shapeRow.removeFromLeft (8.0f);
         const auto gridButton = shapeRow.removeFromLeft (74.0f);
 
@@ -185,7 +185,7 @@ void MainComponent::mouseDown (const juce::MouseEvent& e)
         beautyRow.removeFromLeft (6.0f);
         const auto cornersButton = beautyRow.removeFromLeft (94.0f);
         beautyRow.removeFromLeft (6.0f);
-        const auto radiusButton = beautyRow.removeFromLeft (78.0f);
+        const auto radiusSlider = beautyRow.removeFromLeft (118.0f);
 
         auto shapeGridArea = getPreviewArea().reduced (18.0f)
             .removeFromTop (126.0f)
@@ -222,6 +222,15 @@ void MainComponent::mouseDown (const juce::MouseEvent& e)
             {
                 beautyStrength = amount * 2.0f;
                 previewMode = PreviewMode::material;
+            }
+            else if (slider == PreviewSlider::degradation)
+            {
+                previewQualityDivisor = amount < 0.33f ? 2 : amount < 0.66f ? 4 : 8;
+            }
+            else if (slider == PreviewSlider::radius)
+            {
+                cornerRadiusAmount = 0.25f + amount * 0.75f;
+                previewShape = PreviewShape::rectangle;
             }
 
             repaint();
@@ -312,13 +321,10 @@ void MainComponent::mouseDown (const juce::MouseEvent& e)
             return;
         }
 
-        if (previewQualityButton.contains (mouse))
+        if (degradationSlider.contains (mouse))
         {
-            previewQualityDivisor = previewQualityDivisor == 2 ? 4
-                : previewQualityDivisor == 4 ? 8
-                : 2;
-
-            repaint();
+            draggedPreviewSlider = PreviewSlider::degradation;
+            setPreviewSliderValue (draggedPreviewSlider, degradationSlider, mouse.x);
             return;
         }
 
@@ -426,15 +432,10 @@ void MainComponent::mouseDown (const juce::MouseEvent& e)
             return;
         }
 
-        if (radiusButton.contains (mouse))
+        if (radiusSlider.contains (mouse))
         {
-            cornerRadiusAmount = cornerRadiusAmount < 0.375f ? 0.50f
-                : cornerRadiusAmount < 0.625f ? 0.75f
-                : cornerRadiusAmount < 0.875f ? 1.00f
-                : 0.25f;
-
-            previewShape = PreviewShape::rectangle;
-            repaint();
+            draggedPreviewSlider = PreviewSlider::radius;
+            setPreviewSliderValue (draggedPreviewSlider, radiusSlider, mouse.x);
             return;
         }
 
@@ -472,10 +473,20 @@ void MainComponent::mouseDrag (const juce::MouseEvent& e)
     {
         auto previewControls = getPreviewArea().reduced (18.0f).removeFromTop (120.0f).removeFromRight (500.0f);
 
-        previewControls.removeFromTop (24.0f);
+        auto shapeRow = previewControls.removeFromTop (24.0f);
         previewControls.removeFromTop (8.0f);
         previewControls.removeFromTop (24.0f);
         previewControls.removeFromTop (8.0f);
+
+        shapeRow.removeFromLeft (72.0f);
+        shapeRow.removeFromLeft (8.0f);
+        shapeRow.removeFromLeft (80.0f);
+        shapeRow.removeFromLeft (8.0f);
+        shapeRow.removeFromLeft (62.0f);
+        shapeRow.removeFromLeft (8.0f);
+        shapeRow.removeFromLeft (76.0f);
+        shapeRow.removeFromLeft (8.0f);
+        const auto degradationSlider = shapeRow.removeFromLeft (92.0f);
 
         auto adjustRow = previewControls.removeFromTop (24.0f);
         previewControls.removeFromTop (8.0f);
@@ -488,6 +499,12 @@ void MainComponent::mouseDrag (const juce::MouseEvent& e)
         const auto elevationSlider = adjustRow.removeFromLeft (126.0f);
 
         const auto depthSlider = beautyRow.removeFromLeft (150.0f);
+        beautyRow.removeFromLeft (8.0f);
+        beautyRow.removeFromLeft (96.0f);
+        beautyRow.removeFromLeft (6.0f);
+        beautyRow.removeFromLeft (94.0f);
+        beautyRow.removeFromLeft (6.0f);
+        const auto radiusSlider = beautyRow.removeFromLeft (118.0f);
 
         juce::Rectangle<float> sliderArea;
 
@@ -499,6 +516,10 @@ void MainComponent::mouseDrag (const juce::MouseEvent& e)
             sliderArea = elevationSlider;
         else if (draggedPreviewSlider == PreviewSlider::depth)
             sliderArea = depthSlider;
+        else if (draggedPreviewSlider == PreviewSlider::degradation)
+            sliderArea = degradationSlider;
+        else if (draggedPreviewSlider == PreviewSlider::radius)
+            sliderArea = radiusSlider;
 
         const auto amount = juce::jlimit (0.0f, 1.0f, (e.position.x - sliderArea.getX()) / juce::jmax (1.0f, sliderArea.getWidth()));
 
@@ -528,6 +549,15 @@ void MainComponent::mouseDrag (const juce::MouseEvent& e)
         {
             beautyStrength = amount * 2.0f;
             previewMode = PreviewMode::material;
+        }
+        else if (draggedPreviewSlider == PreviewSlider::degradation)
+        {
+            previewQualityDivisor = amount < 0.33f ? 2 : amount < 0.66f ? 4 : 8;
+        }
+        else if (draggedPreviewSlider == PreviewSlider::radius)
+        {
+            cornerRadiusAmount = 0.25f + amount * 0.75f;
+            previewShape = PreviewShape::rectangle;
         }
 
         repaint();
@@ -1053,7 +1083,7 @@ void MainComponent::drawPreview (juce::Graphics& g, juce::Rectangle<float> area)
     shapeRow.removeFromLeft (8.0f);
     const auto baseButton = shapeRow.removeFromLeft (76.0f);
     shapeRow.removeFromLeft (8.0f);
-    const auto previewQualityButton = shapeRow.removeFromLeft (92.0f);
+    const auto degradationSlider = shapeRow.removeFromLeft (92.0f);
     shapeRow.removeFromLeft (8.0f);
     const auto gridButton = shapeRow.removeFromLeft (74.0f);
 
@@ -1079,7 +1109,7 @@ void MainComponent::drawPreview (juce::Graphics& g, juce::Rectangle<float> area)
     beautyRow.removeFromLeft (6.0f);
     const auto cornersButton = beautyRow.removeFromLeft (94.0f);
     beautyRow.removeFromLeft (6.0f);
-    const auto radiusButton = beautyRow.removeFromLeft (78.0f);
+    const auto radiusSlider = beautyRow.removeFromLeft (118.0f);
 
     auto shapeGridArea = area.reduced (18.0f)
         .removeFromTop (126.0f)
@@ -1148,7 +1178,11 @@ void MainComponent::drawPreview (juce::Graphics& g, juce::Rectangle<float> area)
     g.setFont (juce::FontOptions (12.0f, juce::Font::bold));
     g.drawText ("Base", baseButton.reduced (6.0f, 0.0f), juce::Justification::centred);
 
-    drawShapeButton (previewQualityButton, "Drag /" + juce::String (previewQualityDivisor), false);
+    const auto degradationAmount = previewQualityDivisor == 2 ? 0.0f
+        : previewQualityDivisor == 4 ? 0.5f
+        : 1.0f;
+
+    drawPreviewSlider (degradationSlider, "Degr /" + juce::String (previewQualityDivisor), degradationAmount);
     drawShapeButton (gridButton, gridDivisor == 0 ? "Grid Off" : "Grid /" + juce::String (gridDivisor), gridDivisor > 0);
     drawShapeButton (heightButton, "Height", previewMode == PreviewMode::heightMap);
     drawShapeButton (normalButton, "Normal", previewMode == PreviewMode::normalMap);
@@ -1172,7 +1206,7 @@ void MainComponent::drawPreview (juce::Graphics& g, juce::Rectangle<float> area)
     drawPreviewSlider (depthSlider, "Depth " + juce::String (juce::roundToInt (beautyStrength * 50.0f)) + "%", beautyStrength / 2.0f);
     drawShapeButton (ratioButton, "Ratio " + getAspectText(), previewShape == PreviewShape::rectangle);
     drawShapeButton (cornersButton, "Corner " + getCornerText(), roundedCornerMask != 0);
-    drawShapeButton (radiusButton, "Rad " + juce::String (juce::roundToInt (cornerRadiusAmount * 100.0f)), roundedCornerMask != 0);
+    drawPreviewSlider (radiusSlider, "Rad " + juce::String (juce::roundToInt (cornerRadiusAmount * 100.0f)), (cornerRadiusAmount - 0.25f) / 0.75f);
 
     auto drawShapeGridCell = [&] (juce::Rectangle<float> cell, bool active, bool circular)
     {
@@ -1391,7 +1425,7 @@ void MainComponent::drawPreview (juce::Graphics& g, juce::Rectangle<float> area)
 
     const auto imageBounds = shapeArea.getSmallestIntegerContainer();
 
-    const auto isFastPreview = draggedPointIndex >= 0;
+    const auto isFastPreview = draggedPointIndex >= 0 || draggedPreviewSlider != PreviewSlider::none;
     const auto renderScale = isFastPreview ? 1.0f / (float) previewQualityDivisor : 1.0f;
 
     const auto renderWidth = juce::jmax (1, juce::roundToInt ((float) imageBounds.getWidth() * renderScale));
@@ -1631,35 +1665,54 @@ void MainComponent::drawPreview (juce::Graphics& g, juce::Rectangle<float> area)
 
         normalAtPixel (pixelX, pixelY, currentHeight, nx, ny, nz);
 
-        const auto lightRadians = (lightAngleDeg - 90.0f) * juce::MathConstants<float>::pi / 180.0f;
+        auto applyLayerOpacity = [] (float layerValue, float opacity)
+        {
+            layerValue = juce::jlimit (0.0f, 1.0f, layerValue);
+            opacity = juce::jlimit (0.0f, 1.0f, opacity);
 
-        const auto lz = juce::jmap (lightElevation, 0.10f, 1.0f, 0.22f, 0.96f);
+            return 1.0f + (layerValue - 1.0f) * opacity;
+        };
+
+        const auto heightOpacity = juce::jlimit (0.0f, 1.0f, beautyStrength / 2.0f);
+        constexpr float cavityOpacity = 1.0f;
+        constexpr float aoOpacity = 1.0f;
+
+        const auto heightLayer = applyLayerOpacity (
+            juce::jlimit (0.0f, 1.0f, 0.08f + heightValueAt (profileX) * 0.92f),
+            heightOpacity);
+
+        const auto cavityLayer = applyLayerOpacity (cavityAt (profileX), cavityOpacity);
+        const auto aoLayer = applyLayerOpacity (ambientOcclusionAtPixel (pixelX, pixelY, currentHeight), aoOpacity);
+
+        const auto layerShade = juce::jlimit (0.0f, 1.0f, heightLayer * cavityLayer * aoLayer);
+
+        const auto lightRadians = (lightAngleDeg - 90.0f) * juce::MathConstants<float>::pi / 180.0f;
+        const auto lz = juce::jmap (lightElevation, 0.10f, 1.0f, 0.20f, 0.95f);
         const auto sideAmount = std::sqrt (juce::jmax (0.0f, 1.0f - lz * lz));
 
         const auto lx = std::cos (lightRadians) * sideAmount;
         const auto ly = std::sin (lightRadians) * sideAmount;
 
-        const auto lightLength = std::sqrt (lx * lx + ly * ly + lz * lz);
-        const auto dot = juce::jlimit (0.0f, 1.0f, (nx * lx + ny * ly + nz * lz) / lightLength);
+        const auto hx = lx;
+        const auto hy = ly;
+        const auto hz = lz + 1.0f;
+        const auto hLength = juce::jmax (0.0001f, std::sqrt (hx * hx + hy * hy + hz * hz));
 
-        const auto strength = beautyStrength;
+        const auto specDot = juce::jlimit (0.0f, 1.0f,
+            (nx * hx + ny * hy + nz * hz) / hLength);
 
-        const auto heightLift = 1.0f + (heightValueAt (profileX) - 0.5f) * 0.44f * strength;
-        const auto cavityShade = 1.0f - (1.0f - cavityAt (profileX)) * 0.78f * strength;
-        const auto aoShade = 1.0f - (1.0f - ambientOcclusionAtPixel (pixelX, pixelY, currentHeight)) * 0.74f * strength;
-        const auto diffuse = 0.34f + dot * (0.54f + 0.36f * strength);
+        const auto gloss01 = juce::jlimit (0.0f, 1.0f, glossAmount / 2.0f);
 
-        const auto shade = juce::jlimit (0.0f, 1.65f, diffuse * heightLift * cavityShade * aoShade);
-        const auto specPower = juce::jmap (glossAmount, 0.0f, 2.0f, 8.0f, 170.0f);
-        const auto specStrength = juce::jmap (glossAmount, 0.0f, 2.0f, 0.02f, 1.15f);
-        const auto spec = std::pow (dot, specPower) * specStrength;
+        const auto specPower = juce::jmap (gloss01, 0.0f, 1.0f, 4.0f, 96.0f);
+        const auto specular = std::pow (specDot, specPower) * gloss01 * 2.4f;
 
         return juce::Colour::fromFloatRGBA (
-            juce::jlimit (0.0f, 1.0f, baseColour.getFloatRed()   * shade + spec),
-            juce::jlimit (0.0f, 1.0f, baseColour.getFloatGreen() * shade + spec),
-            juce::jlimit (0.0f, 1.0f, baseColour.getFloatBlue()  * shade + spec),
+            juce::jlimit (0.0f, 1.0f, baseColour.getFloatRed()   * layerShade + specular),
+            juce::jlimit (0.0f, 1.0f, baseColour.getFloatGreen() * layerShade + specular),
+            juce::jlimit (0.0f, 1.0f, baseColour.getFloatBlue()  * layerShade + specular),
             1.0f);
     };
+
 
     for (int y = 0; y < previewImage.getHeight(); ++y)
     {
@@ -1698,6 +1751,9 @@ void MainComponent::drawPreview (juce::Graphics& g, juce::Rectangle<float> area)
         }
     }
 
+    g.setOpacity (1.0f);
+    g.setColour (juce::Colours::white);
+
     g.drawImage (
         previewImage,
         imageBounds.getX(),
@@ -1707,7 +1763,8 @@ void MainComponent::drawPreview (juce::Graphics& g, juce::Rectangle<float> area)
         0,
         0,
         previewImage.getWidth(),
-        previewImage.getHeight());
+        previewImage.getHeight(),
+        false);
 
     g.setColour (juce::Colours::white.withAlpha (0.12f));
 
