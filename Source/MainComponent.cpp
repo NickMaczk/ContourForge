@@ -141,28 +141,26 @@ void MainComponent::mouseDown (const juce::MouseEvent& e)
     }
 
     {
-        auto previewControls = getToolsArea().reduced (18.0f).removeFromTop (120.0f);
+        auto previewControls = getToolsArea().reduced (18.0f);
+        previewControls.removeFromTop (54.0f);
 
-        auto shapeRow = previewControls.removeFromTop (24.0f);
-        previewControls.removeFromTop (8.0f);
-        auto modeRow = previewControls.removeFromTop (24.0f);
-        previewControls.removeFromTop (8.0f);
-        auto adjustRow = previewControls.removeFromTop (24.0f);
-        previewControls.removeFromTop (8.0f);
-        auto beautyRow = previewControls.removeFromTop (24.0f);
+        auto nextToolRow = [&] (float height = 24.0f)
+        {
+            auto row = previewControls.removeFromTop (height);
+            previewControls.removeFromTop (8.0f);
+            return row;
+        };
 
+        auto shapeRow = nextToolRow();
         const auto circleButton = shapeRow.removeFromLeft (72.0f);
         shapeRow.removeFromLeft (8.0f);
         const auto squareButton = shapeRow.removeFromLeft (80.0f);
         shapeRow.removeFromLeft (8.0f);
         const auto rectButton = shapeRow.removeFromLeft (62.0f);
         shapeRow.removeFromLeft (8.0f);
-        const auto baseButton = shapeRow.removeFromLeft (76.0f);
-        shapeRow.removeFromLeft (8.0f);
-        const auto degradationSlider = shapeRow.removeFromLeft (92.0f);
-        shapeRow.removeFromLeft (8.0f);
         const auto gridButton = shapeRow.removeFromLeft (74.0f);
 
+        auto modeRow = nextToolRow();
         const auto heightButton = modeRow.removeFromLeft (60.0f);
         modeRow.removeFromLeft (6.0f);
         const auto normalButton = modeRow.removeFromLeft (64.0f);
@@ -173,24 +171,24 @@ void MainComponent::mouseDown (const juce::MouseEvent& e)
         modeRow.removeFromLeft (6.0f);
         const auto aoButton = modeRow.removeFromLeft (42.0f);
 
-        const auto rangeSlider = adjustRow.removeFromLeft (126.0f);
-        adjustRow.removeFromLeft (8.0f);
-        const auto glossSlider = adjustRow.removeFromLeft (126.0f);
-        adjustRow.removeFromLeft (8.0f);
-        const auto elevationSlider = adjustRow.removeFromLeft (126.0f);
+        const auto baseButton = nextToolRow();
+        const auto degradationSlider = nextToolRow();
+        const auto rangeSlider = nextToolRow();
+        const auto elevationSlider = nextToolRow();
+        const auto radiusSlider = nextToolRow();
 
-        const auto depthSlider = beautyRow.removeFromLeft (150.0f);
-        beautyRow.removeFromLeft (8.0f);
-        const auto ratioButton = beautyRow.removeFromLeft (96.0f);
-        beautyRow.removeFromLeft (6.0f);
-        const auto cornersButton = beautyRow.removeFromLeft (94.0f);
-        beautyRow.removeFromLeft (6.0f);
-        const auto radiusSlider = beautyRow.removeFromLeft (118.0f);
+        const auto depthSlider = nextToolRow();
+        const auto cavityLayerSlider = nextToolRow();
+        const auto aoLayerSlider = nextToolRow();
+        const auto specularLayerSlider = nextToolRow();
+        const auto glossSlider = nextToolRow();
 
-        auto shapeGridArea = getToolsArea().reduced (18.0f)
-            .removeFromTop (126.0f)
-            .removeFromBottom (62.0f)
-            .removeFromLeft (62.0f);
+        auto ratioRow = nextToolRow();
+        const auto ratioButton = ratioRow.removeFromLeft (96.0f);
+        ratioRow.removeFromLeft (6.0f);
+        const auto cornersButton = ratioRow.removeFromLeft (94.0f);
+
+        auto shapeGridArea = previewControls.removeFromTop (62.0f).removeFromLeft (62.0f);
 
         auto setPreviewSliderValue = [&] (PreviewSlider slider, juce::Rectangle<float> sliderArea, float mouseX)
         {
@@ -221,6 +219,21 @@ void MainComponent::mouseDown (const juce::MouseEvent& e)
             else if (slider == PreviewSlider::depth)
             {
                 beautyStrength = amount * 2.0f;
+                previewMode = PreviewMode::material;
+            }
+            else if (slider == PreviewSlider::cavityLayer)
+            {
+                cavityLayerOpacity = amount;
+                previewMode = PreviewMode::material;
+            }
+            else if (slider == PreviewSlider::aoLayer)
+            {
+                aoLayerOpacity = amount;
+                previewMode = PreviewMode::material;
+            }
+            else if (slider == PreviewSlider::specularLayer)
+            {
+                specularLayerAmount = amount;
                 previewMode = PreviewMode::material;
             }
             else if (slider == PreviewSlider::degradation)
@@ -403,6 +416,27 @@ void MainComponent::mouseDown (const juce::MouseEvent& e)
             return;
         }
 
+        if (cavityLayerSlider.contains (mouse))
+        {
+            draggedPreviewSlider = PreviewSlider::cavityLayer;
+            setPreviewSliderValue (draggedPreviewSlider, cavityLayerSlider, mouse.x);
+            return;
+        }
+
+        if (aoLayerSlider.contains (mouse))
+        {
+            draggedPreviewSlider = PreviewSlider::aoLayer;
+            setPreviewSliderValue (draggedPreviewSlider, aoLayerSlider, mouse.x);
+            return;
+        }
+
+        if (specularLayerSlider.contains (mouse))
+        {
+            draggedPreviewSlider = PreviewSlider::specularLayer;
+            setPreviewSliderValue (draggedPreviewSlider, specularLayerSlider, mouse.x);
+            return;
+        }
+
         if (ratioButton.contains (mouse))
         {
             aspectPresetIndex = (aspectPresetIndex + 1) % 7;
@@ -471,40 +505,30 @@ void MainComponent::mouseDrag (const juce::MouseEvent& e)
 {
     if (draggedPreviewSlider != PreviewSlider::none)
     {
-        auto previewControls = getToolsArea().reduced (18.0f).removeFromTop (120.0f);
+        auto previewControls = getToolsArea().reduced (18.0f);
+        previewControls.removeFromTop (54.0f);
 
-        auto shapeRow = previewControls.removeFromTop (24.0f);
-        previewControls.removeFromTop (8.0f);
-        previewControls.removeFromTop (24.0f);
-        previewControls.removeFromTop (8.0f);
+        auto nextToolRow = [&] (float height = 24.0f)
+        {
+            auto row = previewControls.removeFromTop (height);
+            previewControls.removeFromTop (8.0f);
+            return row;
+        };
 
-        shapeRow.removeFromLeft (72.0f);
-        shapeRow.removeFromLeft (8.0f);
-        shapeRow.removeFromLeft (80.0f);
-        shapeRow.removeFromLeft (8.0f);
-        shapeRow.removeFromLeft (62.0f);
-        shapeRow.removeFromLeft (8.0f);
-        shapeRow.removeFromLeft (76.0f);
-        shapeRow.removeFromLeft (8.0f);
-        const auto degradationSlider = shapeRow.removeFromLeft (92.0f);
+        nextToolRow(); // shape row
+        nextToolRow(); // mode row
+        nextToolRow(); // base color
 
-        auto adjustRow = previewControls.removeFromTop (24.0f);
-        previewControls.removeFromTop (8.0f);
-        auto beautyRow = previewControls.removeFromTop (24.0f);
+        const auto degradationSlider = nextToolRow();
+        const auto rangeSlider = nextToolRow();
+        const auto elevationSlider = nextToolRow();
+        const auto radiusSlider = nextToolRow();
 
-        const auto rangeSlider = adjustRow.removeFromLeft (126.0f);
-        adjustRow.removeFromLeft (8.0f);
-        const auto glossSlider = adjustRow.removeFromLeft (126.0f);
-        adjustRow.removeFromLeft (8.0f);
-        const auto elevationSlider = adjustRow.removeFromLeft (126.0f);
-
-        const auto depthSlider = beautyRow.removeFromLeft (150.0f);
-        beautyRow.removeFromLeft (8.0f);
-        beautyRow.removeFromLeft (96.0f);
-        beautyRow.removeFromLeft (6.0f);
-        beautyRow.removeFromLeft (94.0f);
-        beautyRow.removeFromLeft (6.0f);
-        const auto radiusSlider = beautyRow.removeFromLeft (118.0f);
+        const auto depthSlider = nextToolRow();
+        const auto cavityLayerSlider = nextToolRow();
+        const auto aoLayerSlider = nextToolRow();
+        const auto specularLayerSlider = nextToolRow();
+        const auto glossSlider = nextToolRow();
 
         juce::Rectangle<float> sliderArea;
 
@@ -516,6 +540,12 @@ void MainComponent::mouseDrag (const juce::MouseEvent& e)
             sliderArea = elevationSlider;
         else if (draggedPreviewSlider == PreviewSlider::depth)
             sliderArea = depthSlider;
+        else if (draggedPreviewSlider == PreviewSlider::cavityLayer)
+            sliderArea = cavityLayerSlider;
+        else if (draggedPreviewSlider == PreviewSlider::aoLayer)
+            sliderArea = aoLayerSlider;
+        else if (draggedPreviewSlider == PreviewSlider::specularLayer)
+            sliderArea = specularLayerSlider;
         else if (draggedPreviewSlider == PreviewSlider::degradation)
             sliderArea = degradationSlider;
         else if (draggedPreviewSlider == PreviewSlider::radius)
@@ -548,6 +578,21 @@ void MainComponent::mouseDrag (const juce::MouseEvent& e)
         else if (draggedPreviewSlider == PreviewSlider::depth)
         {
             beautyStrength = amount * 2.0f;
+            previewMode = PreviewMode::material;
+        }
+        else if (draggedPreviewSlider == PreviewSlider::cavityLayer)
+        {
+            cavityLayerOpacity = amount;
+            previewMode = PreviewMode::material;
+        }
+        else if (draggedPreviewSlider == PreviewSlider::aoLayer)
+        {
+            aoLayerOpacity = amount;
+            previewMode = PreviewMode::material;
+        }
+        else if (draggedPreviewSlider == PreviewSlider::specularLayer)
+        {
+            specularLayerAmount = amount;
             previewMode = PreviewMode::material;
         }
         else if (draggedPreviewSlider == PreviewSlider::degradation)
@@ -760,6 +805,9 @@ juce::var MainComponent::createProjectState() const
     root->setProperty ("lightElevation", lightElevation);
     root->setProperty ("glossAmount", glossAmount);
     root->setProperty ("beautyStrength", beautyStrength);
+    root->setProperty ("cavityLayerOpacity", cavityLayerOpacity);
+    root->setProperty ("aoLayerOpacity", aoLayerOpacity);
+    root->setProperty ("specularLayerAmount", specularLayerAmount);
     root->setProperty ("previewQualityDivisor", previewQualityDivisor);
     root->setProperty ("gridDivisor", gridDivisor);
     root->setProperty ("aspectPresetIndex", aspectPresetIndex);
@@ -871,6 +919,21 @@ bool MainComponent::applyProjectState (const juce::var& state)
 
     if (! loadedBeautyStrength.isVoid())
         beautyStrength = juce::jlimit (0.0f, 2.0f, (float) (double) loadedBeautyStrength);
+
+    const auto loadedCavityLayerOpacity = root->getProperty ("cavityLayerOpacity");
+
+    if (! loadedCavityLayerOpacity.isVoid())
+        cavityLayerOpacity = juce::jlimit (0.0f, 1.0f, (float) (double) loadedCavityLayerOpacity);
+
+    const auto loadedAoLayerOpacity = root->getProperty ("aoLayerOpacity");
+
+    if (! loadedAoLayerOpacity.isVoid())
+        aoLayerOpacity = juce::jlimit (0.0f, 1.0f, (float) (double) loadedAoLayerOpacity);
+
+    const auto loadedSpecularLayerAmount = root->getProperty ("specularLayerAmount");
+
+    if (! loadedSpecularLayerAmount.isVoid())
+        specularLayerAmount = juce::jlimit (0.0f, 1.0f, (float) (double) loadedSpecularLayerAmount);
 
     const auto loadedPreviewQualityDivisor = (int) root->getProperty ("previewQualityDivisor");
 
@@ -1066,8 +1129,8 @@ void MainComponent::drawPreview (juce::Graphics& g, juce::Rectangle<float> area)
         modeText
         + " | Light " + juce::String (juce::roundToInt (lightAngleDeg)) + juce::String::fromUTF8 ("\xC2\xB0")
         + " | Elev " + juce::String (juce::roundToInt (lightElevation * 100.0f)) + "%"
-        + " | Gloss " + juce::String (juce::roundToInt (glossAmount * 100.0f)) + "%"
-        + " | Depth " + juce::String (juce::roundToInt (beautyStrength * 100.0f)) + "%"
+        + " | Gloss " + juce::String (juce::roundToInt (glossAmount * 50.0f)) + "%"
+        + " | Height " + juce::String (juce::roundToInt (beautyStrength * 50.0f)) + "%"
         + " | Grid " + (gridDivisor == 0 ? juce::String ("Off") : "/" + juce::String (gridDivisor))
         + " | Ratio " + getAspectText()
         + " | Corners " + getCornerText()
@@ -1080,56 +1143,54 @@ void MainComponent::drawPreview (juce::Graphics& g, juce::Rectangle<float> area)
     g.setFont (juce::FontOptions (11.0f));
     g.drawText (infoText, infoRow, juce::Justification::left);
 
-    auto previewControls = toolsArea.reduced (18.0f).removeFromTop (120.0f);
+    auto previewControls = getToolsArea().reduced (18.0f);
+        previewControls.removeFromTop (54.0f);
 
-    auto shapeRow = previewControls.removeFromTop (24.0f);
-    previewControls.removeFromTop (8.0f);
-    auto modeRow = previewControls.removeFromTop (24.0f);
-    previewControls.removeFromTop (8.0f);
-    auto adjustRow = previewControls.removeFromTop (24.0f);
-    previewControls.removeFromTop (8.0f);
-    auto beautyRow = previewControls.removeFromTop (24.0f);
+        auto nextToolRow = [&] (float height = 24.0f)
+        {
+            auto row = previewControls.removeFromTop (height);
+            previewControls.removeFromTop (8.0f);
+            return row;
+        };
 
-    const auto circleButton = shapeRow.removeFromLeft (72.0f);
-    shapeRow.removeFromLeft (8.0f);
-    const auto squareButton = shapeRow.removeFromLeft (80.0f);
-    shapeRow.removeFromLeft (8.0f);
-    const auto rectButton = shapeRow.removeFromLeft (62.0f);
-    shapeRow.removeFromLeft (8.0f);
-    const auto baseButton = shapeRow.removeFromLeft (76.0f);
-    shapeRow.removeFromLeft (8.0f);
-    const auto degradationSlider = shapeRow.removeFromLeft (92.0f);
-    shapeRow.removeFromLeft (8.0f);
-    const auto gridButton = shapeRow.removeFromLeft (74.0f);
+        auto shapeRow = nextToolRow();
+        const auto circleButton = shapeRow.removeFromLeft (72.0f);
+        shapeRow.removeFromLeft (8.0f);
+        const auto squareButton = shapeRow.removeFromLeft (80.0f);
+        shapeRow.removeFromLeft (8.0f);
+        const auto rectButton = shapeRow.removeFromLeft (62.0f);
+        shapeRow.removeFromLeft (8.0f);
+        const auto gridButton = shapeRow.removeFromLeft (74.0f);
 
-    const auto heightButton = modeRow.removeFromLeft (60.0f);
-    modeRow.removeFromLeft (6.0f);
-    const auto normalButton = modeRow.removeFromLeft (64.0f);
-    modeRow.removeFromLeft (6.0f);
-    const auto materialButton = modeRow.removeFromLeft (64.0f);
-    modeRow.removeFromLeft (6.0f);
-    const auto cavityButton = modeRow.removeFromLeft (62.0f);
-    modeRow.removeFromLeft (6.0f);
-    const auto aoButton = modeRow.removeFromLeft (42.0f);
+        auto modeRow = nextToolRow();
+        const auto heightButton = modeRow.removeFromLeft (60.0f);
+        modeRow.removeFromLeft (6.0f);
+        const auto normalButton = modeRow.removeFromLeft (64.0f);
+        modeRow.removeFromLeft (6.0f);
+        const auto materialButton = modeRow.removeFromLeft (64.0f);
+        modeRow.removeFromLeft (6.0f);
+        const auto cavityButton = modeRow.removeFromLeft (62.0f);
+        modeRow.removeFromLeft (6.0f);
+        const auto aoButton = modeRow.removeFromLeft (42.0f);
 
-    const auto rangeSlider = adjustRow.removeFromLeft (126.0f);
-    adjustRow.removeFromLeft (8.0f);
-    const auto glossSlider = adjustRow.removeFromLeft (126.0f);
-    adjustRow.removeFromLeft (8.0f);
-    const auto elevationSlider = adjustRow.removeFromLeft (126.0f);
+        const auto baseButton = nextToolRow();
+        const auto degradationSlider = nextToolRow();
+        const auto rangeSlider = nextToolRow();
+        const auto elevationSlider = nextToolRow();
+        const auto radiusSlider = nextToolRow();
 
-    const auto depthSlider = beautyRow.removeFromLeft (150.0f);
-    beautyRow.removeFromLeft (8.0f);
-    const auto ratioButton = beautyRow.removeFromLeft (96.0f);
-    beautyRow.removeFromLeft (6.0f);
-    const auto cornersButton = beautyRow.removeFromLeft (94.0f);
-    beautyRow.removeFromLeft (6.0f);
-    const auto radiusSlider = beautyRow.removeFromLeft (118.0f);
+        const auto depthSlider = nextToolRow();
+        const auto cavityLayerSlider = nextToolRow();
+        const auto aoLayerSlider = nextToolRow();
+        const auto specularLayerSlider = nextToolRow();
+        const auto glossSlider = nextToolRow();
 
-    auto shapeGridArea = toolsArea.reduced (18.0f)
-        .removeFromTop (126.0f)
-        .removeFromBottom (62.0f)
-        .removeFromLeft (62.0f);
+        auto ratioRow = nextToolRow();
+        const auto ratioButton = ratioRow.removeFromLeft (96.0f);
+        ratioRow.removeFromLeft (6.0f);
+        const auto cornersButton = ratioRow.removeFromLeft (94.0f);
+
+        auto shapeGridArea = previewControls.removeFromTop (62.0f).removeFromLeft (62.0f);
 
     auto drawShapeButton = [&] (juce::Rectangle<float> button, const juce::String& text, bool selected)
     {
@@ -1191,19 +1252,11 @@ void MainComponent::drawPreview (juce::Graphics& g, juce::Rectangle<float> area)
         : juce::Colours::black.withAlpha (0.62f));
 
     g.setFont (juce::FontOptions (12.0f, juce::Font::bold));
-    g.drawText ("Base", baseButton.reduced (6.0f, 0.0f), juce::Justification::centred);
+    g.drawText ("Base Color", baseButton.reduced (6.0f, 0.0f), juce::Justification::centred);
 
     const auto degradationAmount = previewQualityDivisor == 2 ? 0.0f
         : previewQualityDivisor == 4 ? 0.5f
         : 1.0f;
-
-    drawPreviewSlider (degradationSlider, "Degr /" + juce::String (previewQualityDivisor), degradationAmount);
-    drawShapeButton (gridButton, gridDivisor == 0 ? "Grid Off" : "Grid /" + juce::String (gridDivisor), gridDivisor > 0);
-    drawShapeButton (heightButton, "Height", previewMode == PreviewMode::heightMap);
-    drawShapeButton (normalButton, "Normal", previewMode == PreviewMode::normalMap);
-    drawShapeButton (materialButton, "Beauty", previewMode == PreviewMode::material);
-    drawShapeButton (cavityButton, "Cavity", previewMode == PreviewMode::cavity);
-    drawShapeButton (aoButton, "AO", previewMode == PreviewMode::ambientOcclusion);
 
     const auto rangeAmount = previewMode == PreviewMode::material
         ? lightAngleDeg / 360.0f
@@ -1215,10 +1268,17 @@ void MainComponent::drawPreview (juce::Graphics& g, juce::Rectangle<float> area)
         ? "Light " + juce::String (juce::roundToInt (lightAngleDeg))
         : "Range " + juce::String (juce::roundToInt (rangeAmount * 100.0f)) + "%";
 
+    drawPreviewSlider (degradationSlider, "Degradation /" + juce::String (previewQualityDivisor), degradationAmount);
     drawPreviewSlider (rangeSlider, rangeText, rangeAmount);
-    drawPreviewSlider (glossSlider, "Gloss " + juce::String (juce::roundToInt (glossAmount * 50.0f)) + "%", glossAmount / 2.0f);
-    drawPreviewSlider (elevationSlider, "Elev " + juce::String (juce::roundToInt (lightElevation * 100.0f)) + "%", (lightElevation - 0.10f) / 0.90f);
-    drawPreviewSlider (depthSlider, "Depth " + juce::String (juce::roundToInt (beautyStrength * 50.0f)) + "%", beautyStrength / 2.0f);
+    drawPreviewSlider (elevationSlider, "Elevation " + juce::String (juce::roundToInt (lightElevation * 100.0f)) + "%", (lightElevation - 0.10f) / 0.90f);
+    drawPreviewSlider (radiusSlider, "Radius " + juce::String (juce::roundToInt (cornerRadiusAmount * 100.0f)) + "%", (cornerRadiusAmount - 0.25f) / 0.75f);
+
+    drawPreviewSlider (depthSlider, "Height layer " + juce::String (juce::roundToInt (beautyStrength * 50.0f)) + "%", beautyStrength / 2.0f);
+    drawPreviewSlider (cavityLayerSlider, "Cavity layer " + juce::String (juce::roundToInt (cavityLayerOpacity * 100.0f)) + "%", cavityLayerOpacity);
+    drawPreviewSlider (aoLayerSlider, "AO layer " + juce::String (juce::roundToInt (aoLayerOpacity * 100.0f)) + "%", aoLayerOpacity);
+    drawPreviewSlider (specularLayerSlider, "Specular " + juce::String (juce::roundToInt (specularLayerAmount * 100.0f)) + "%", specularLayerAmount);
+    drawPreviewSlider (glossSlider, "Glossiness " + juce::String (juce::roundToInt (glossAmount * 50.0f)) + "%", glossAmount / 2.0f);
+
     drawShapeButton (ratioButton, "Ratio " + getAspectText(), previewShape == PreviewShape::rectangle);
     drawShapeButton (cornersButton, "Corner " + getCornerText(), roundedCornerMask != 0);
     drawPreviewSlider (radiusSlider, "Rad " + juce::String (juce::roundToInt (cornerRadiusAmount * 100.0f)), (cornerRadiusAmount - 0.25f) / 0.75f);
@@ -1690,8 +1750,8 @@ void MainComponent::drawPreview (juce::Graphics& g, juce::Rectangle<float> area)
         };
 
         const auto heightOpacity = juce::jlimit (0.0f, 1.0f, beautyStrength / 2.0f);
-        constexpr float cavityOpacity = 1.0f;
-        constexpr float aoOpacity = 1.0f;
+        const auto cavityOpacity = cavityLayerOpacity;
+        const auto aoOpacity = aoLayerOpacity;
 
         const auto heightLayer = applyLayerOpacity (
             juce::jlimit (0.0f, 1.0f, 0.08f + heightValueAt (profileX) * 0.92f),
@@ -1720,7 +1780,7 @@ void MainComponent::drawPreview (juce::Graphics& g, juce::Rectangle<float> area)
         const auto gloss01 = juce::jlimit (0.0f, 1.0f, glossAmount / 2.0f);
 
         const auto specPower = juce::jmap (gloss01, 0.0f, 1.0f, 4.0f, 96.0f);
-        const auto specular = std::pow (specDot, specPower) * gloss01 * 2.4f;
+        const auto specular = std::pow (specDot, specPower) * specularLayerAmount * 2.4f;
 
         return juce::Colour::fromFloatRGBA (
             juce::jlimit (0.0f, 1.0f, baseColour.getFloatRed()   * layerShade + specular),

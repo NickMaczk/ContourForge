@@ -52,6 +52,9 @@ private:
         gloss,
         elevation,
         depth,
+        cavityLayer,
+        aoLayer,
+        specularLayer,
         degradation,
         radius
     };
@@ -67,6 +70,9 @@ private:
     float lightElevation = 0.62f;
     float glossAmount = 0.45f;
     float beautyStrength = 1.0f;
+    float cavityLayerOpacity = 1.0f;
+    float aoLayerOpacity = 1.0f;
+    float specularLayerAmount = 1.0f;
     int gridDivisor = 0;
     int aspectPresetIndex = 2; // default 3:1
     int roundedCornerMask = 0; // TL=1, TR=2, BR=4, BL=8
