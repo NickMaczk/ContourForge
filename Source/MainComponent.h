@@ -32,7 +32,8 @@ private:
     enum class PreviewShape
     {
         circle,
-        square
+        square,
+        rectangle
     };
 
     enum class PreviewMode

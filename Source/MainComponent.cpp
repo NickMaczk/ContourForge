@@ -155,6 +155,8 @@ void MainComponent::mouseDown (const juce::MouseEvent& e)
         shapeRow.removeFromLeft (8.0f);
         const auto squareButton = shapeRow.removeFromLeft (80.0f);
         shapeRow.removeFromLeft (8.0f);
+        const auto rectButton = shapeRow.removeFromLeft (62.0f);
+        shapeRow.removeFromLeft (8.0f);
         const auto baseButton = shapeRow.removeFromLeft (76.0f);
         shapeRow.removeFromLeft (8.0f);
         const auto previewQualityButton = shapeRow.removeFromLeft (92.0f);
@@ -197,6 +199,13 @@ void MainComponent::mouseDown (const juce::MouseEvent& e)
         if (squareButton.contains (mouse))
         {
             previewShape = PreviewShape::square;
+            repaint();
+            return;
+        }
+
+        if (rectButton.contains (mouse))
+        {
+            previewShape = PreviewShape::rectangle;
             repaint();
             return;
         }
@@ -588,7 +597,10 @@ juce::var MainComponent::createProjectState() const
     auto* root = new juce::DynamicObject();
 
     root->setProperty ("version", 2);
-    root->setProperty ("previewShape", previewShape == PreviewShape::circle ? "circle" : "square");
+    root->setProperty ("previewShape",
+        previewShape == PreviewShape::circle ? "circle"
+        : previewShape == PreviewShape::rectangle ? "rectangle"
+        : "square");
     root->setProperty ("previewMode",
         previewMode == PreviewMode::normalMap ? "normalMap"
         : previewMode == PreviewMode::material ? "material"
@@ -654,9 +666,13 @@ bool MainComponent::applyProjectState (const juce::var& state)
 
     profilePoints = std::move (loadedPoints);
 
-    previewShape = root->getProperty ("previewShape").toString() == "square"
-        ? PreviewShape::square
-        : PreviewShape::circle;
+    const auto previewShapeText = root->getProperty ("previewShape").toString();
+
+    previewShape = previewShapeText == "rectangle"
+        ? PreviewShape::rectangle
+        : previewShapeText == "square"
+            ? PreviewShape::square
+            : PreviewShape::circle;
 
     const auto previewModeText = root->getProperty ("previewMode").toString();
 
@@ -868,6 +884,8 @@ void MainComponent::drawPreview (juce::Graphics& g, juce::Rectangle<float> area)
     shapeRow.removeFromLeft (8.0f);
     const auto squareButton = shapeRow.removeFromLeft (80.0f);
     shapeRow.removeFromLeft (8.0f);
+    const auto rectButton = shapeRow.removeFromLeft (62.0f);
+    shapeRow.removeFromLeft (8.0f);
     const auto baseButton = shapeRow.removeFromLeft (76.0f);
     shapeRow.removeFromLeft (8.0f);
     const auto previewQualityButton = shapeRow.removeFromLeft (92.0f);
@@ -915,6 +933,7 @@ void MainComponent::drawPreview (juce::Graphics& g, juce::Rectangle<float> area)
 
     drawShapeButton (circleButton, "Circle", previewShape == PreviewShape::circle);
     drawShapeButton (squareButton, "Square", previewShape == PreviewShape::square);
+    drawShapeButton (rectButton, "Rect", previewShape == PreviewShape::rectangle);
 
     g.setColour (baseColour.withAlpha (0.82f));
     g.fillRoundedRectangle (baseButton, 6.0f);
@@ -951,11 +970,15 @@ void MainComponent::drawPreview (juce::Graphics& g, juce::Rectangle<float> area)
     drawShapeButton (beautyPlusButton, "Depth+", false);
 
     auto shapeArea = area.reduced (84.0f, 144.0f);
-    const auto side = juce::jmin (shapeArea.getWidth(), shapeArea.getHeight());
-    shapeArea = shapeArea.withSizeKeepingCentre (side, side);
+
+    if (previewShape != PreviewShape::rectangle)
+    {
+        const auto side = juce::jmin (shapeArea.getWidth(), shapeArea.getHeight());
+        shapeArea = shapeArea.withSizeKeepingCentre (side, side);
+    }
 
     const auto centre = shapeArea.getCentre();
-    const auto outerRadius = side * 0.5f;
+    const auto outerRadius = juce::jmin (shapeArea.getWidth(), shapeArea.getHeight()) * 0.5f;
 
     auto normaliseAngle = [] (float angle)
     {
@@ -1087,7 +1110,7 @@ void MainComponent::drawPreview (juce::Graphics& g, juce::Rectangle<float> area)
 
         float edgeDistance = outerRadius;
 
-        if (previewShape == PreviewShape::square)
+        if (previewShape == PreviewShape::square || previewShape == PreviewShape::rectangle)
         {
             const auto radians = (angleDeg - 90.0f) * juce::MathConstants<float>::pi / 180.0f;
             const auto dirX = std::cos (radians);
@@ -1272,7 +1295,7 @@ void MainComponent::drawPreview (juce::Graphics& g, juce::Rectangle<float> area)
 
             float edgeDistance = outerRadius;
 
-            if (previewShape == PreviewShape::square)
+            if (previewShape == PreviewShape::square || previewShape == PreviewShape::rectangle)
             {
                 const auto radians = (angleDeg - 90.0f) * juce::MathConstants<float>::pi / 180.0f;
                 const auto dirX = std::cos (radians);
