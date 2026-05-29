@@ -57,6 +57,7 @@ private:
     float glossAmount = 0.45f;
     float beautyStrength = 1.0f;
     int gridDivisor = 0;
+    int aspectPresetIndex = 2; // default 3:1
     int previewQualityDivisor = 2;
 
     juce::String statusText;

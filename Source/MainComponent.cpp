@@ -188,6 +188,8 @@ void MainComponent::mouseDown (const juce::MouseEvent& e)
         const auto beautyMinusButton = beautyRow.removeFromLeft (72.0f);
         beautyRow.removeFromLeft (6.0f);
         const auto beautyPlusButton = beautyRow.removeFromLeft (72.0f);
+        beautyRow.removeFromLeft (6.0f);
+        const auto ratioButton = beautyRow.removeFromLeft (96.0f);
 
         if (circleButton.contains (mouse))
         {
@@ -379,6 +381,14 @@ void MainComponent::mouseDown (const juce::MouseEvent& e)
         {
             beautyStrength = juce::jlimit (0.0f, 2.0f, beautyStrength + 0.10f);
             previewMode = PreviewMode::material;
+            repaint();
+            return;
+        }
+
+        if (ratioButton.contains (mouse))
+        {
+            aspectPresetIndex = (aspectPresetIndex + 1) % 7;
+            previewShape = PreviewShape::rectangle;
             repaint();
             return;
         }
@@ -617,6 +627,7 @@ juce::var MainComponent::createProjectState() const
     root->setProperty ("beautyStrength", beautyStrength);
     root->setProperty ("previewQualityDivisor", previewQualityDivisor);
     root->setProperty ("gridDivisor", gridDivisor);
+    root->setProperty ("aspectPresetIndex", aspectPresetIndex);
 
     juce::Array<juce::var> points;
 
@@ -734,6 +745,11 @@ bool MainComponent::applyProjectState (const juce::var& state)
     if (loadedGridDivisor == 0 || loadedGridDivisor == 4 || loadedGridDivisor == 8
         || loadedGridDivisor == 16 || loadedGridDivisor == 32)
         gridDivisor = loadedGridDivisor;
+
+    const auto loadedAspectPresetIndex = (int) root->getProperty ("aspectPresetIndex");
+
+    if (loadedAspectPresetIndex >= 0 && loadedAspectPresetIndex < 7)
+        aspectPresetIndex = loadedAspectPresetIndex;
 
     selectedPointIndex = -1;
     draggedPointIndex = -1;
@@ -854,6 +870,23 @@ void MainComponent::drawPreview (juce::Graphics& g, juce::Rectangle<float> area)
     else if (previewMode == PreviewMode::ambientOcclusion)
         modeText = "AO";
 
+    auto getAspectText = [&]()
+    {
+        switch (aspectPresetIndex)
+        {
+            case 0: return juce::String ("1:1");
+            case 1: return juce::String ("2:1");
+            case 2: return juce::String ("3:1");
+            case 3: return juce::String ("4:3");
+            case 4: return juce::String ("3:4");
+            case 5: return juce::String ("1:2");
+            case 6: return juce::String ("2:4");
+            default: break;
+        }
+
+        return juce::String ("3:1");
+    };
+
     const auto infoText =
         modeText
         + " | Light " + juce::String (juce::roundToInt (lightAngleDeg)) + juce::String::fromUTF8 ("\xC2\xB0")
@@ -861,6 +894,7 @@ void MainComponent::drawPreview (juce::Graphics& g, juce::Rectangle<float> area)
         + " | Gloss " + juce::String (juce::roundToInt (glossAmount * 100.0f)) + "%"
         + " | Depth " + juce::String (juce::roundToInt (beautyStrength * 100.0f)) + "%"
         + " | Grid " + (gridDivisor == 0 ? juce::String ("Off") : "/" + juce::String (gridDivisor))
+        + " | Ratio " + getAspectText()
         + " | Drag /" + juce::String (previewQualityDivisor);
 
     auto infoRow = area.reduced (18.0f).removeFromTop (54.0f).removeFromBottom (18.0f);
@@ -917,6 +951,8 @@ void MainComponent::drawPreview (juce::Graphics& g, juce::Rectangle<float> area)
     const auto beautyMinusButton = beautyRow.removeFromLeft (72.0f);
     beautyRow.removeFromLeft (6.0f);
     const auto beautyPlusButton = beautyRow.removeFromLeft (72.0f);
+    beautyRow.removeFromLeft (6.0f);
+    const auto ratioButton = beautyRow.removeFromLeft (96.0f);
 
     auto drawShapeButton = [&] (juce::Rectangle<float> button, const juce::String& text, bool selected)
     {
@@ -968,10 +1004,38 @@ void MainComponent::drawPreview (juce::Graphics& g, juce::Rectangle<float> area)
     drawShapeButton (elevationPlusButton, "Elev+", false);
     drawShapeButton (beautyMinusButton, "Depth-", false);
     drawShapeButton (beautyPlusButton, "Depth+", false);
+    drawShapeButton (ratioButton, "Ratio " + getAspectText(), previewShape == PreviewShape::rectangle);
 
     auto shapeArea = area.reduced (84.0f, 144.0f);
 
-    if (previewShape != PreviewShape::rectangle)
+    auto getAspectRatio = [&]()
+    {
+        switch (aspectPresetIndex)
+        {
+            case 0: return 1.0f / 1.0f;
+            case 1: return 2.0f / 1.0f;
+            case 2: return 3.0f / 1.0f;
+            case 3: return 4.0f / 3.0f;
+            case 4: return 3.0f / 4.0f;
+            case 5: return 1.0f / 2.0f;
+            case 6: return 2.0f / 4.0f;
+            default: break;
+        }
+
+        return 3.0f / 1.0f;
+    };
+
+    if (previewShape == PreviewShape::rectangle)
+    {
+        const auto ratio = getAspectRatio();
+        const auto availableRatio = shapeArea.getWidth() / juce::jmax (1.0f, shapeArea.getHeight());
+
+        if (availableRatio > ratio)
+            shapeArea = shapeArea.withSizeKeepingCentre (shapeArea.getHeight() * ratio, shapeArea.getHeight());
+        else
+            shapeArea = shapeArea.withSizeKeepingCentre (shapeArea.getWidth(), shapeArea.getWidth() / ratio);
+    }
+    else
     {
         const auto side = juce::jmin (shapeArea.getWidth(), shapeArea.getHeight());
         shapeArea = shapeArea.withSizeKeepingCentre (side, side);
@@ -1343,20 +1407,6 @@ void MainComponent::drawPreview (juce::Graphics& g, juce::Rectangle<float> area)
         0,
         previewImage.getWidth(),
         previewImage.getHeight());
-
-    if (gridDivisor > 0)
-    {
-        g.setColour (juce::Colours::white.withAlpha (0.055f));
-
-        for (int i = 0; i <= gridDivisor; ++i)
-        {
-            const auto x = shapeArea.getX() + shapeArea.getWidth() * i / (float) gridDivisor;
-            const auto y = shapeArea.getY() + shapeArea.getHeight() * i / (float) gridDivisor;
-
-            g.drawVerticalLine ((int) x, shapeArea.getY(), shapeArea.getBottom());
-            g.drawHorizontalLine ((int) y, shapeArea.getX(), shapeArea.getRight());
-        }
-    }
 
     g.setColour (juce::Colours::white.withAlpha (0.12f));
 
