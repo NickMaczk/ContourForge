@@ -195,6 +195,13 @@ void MainComponent::mouseDown (const juce::MouseEvent& e)
         beautyRow.removeFromLeft (6.0f);
         const auto radiusButton = beautyRow.removeFromLeft (78.0f);
 
+        auto shapeGridArea = getPreviewArea().reduced (18.0f)
+            .removeFromTop (126.0f)
+            .removeFromBottom (62.0f)
+            .removeFromLeft (62.0f);
+
+
+
         if (circleButton.contains (mouse))
         {
             previewShape = PreviewShape::circle;
@@ -211,6 +218,34 @@ void MainComponent::mouseDown (const juce::MouseEvent& e)
 
         if (rectButton.contains (mouse))
         {
+            previewShape = PreviewShape::rectangle;
+            repaint();
+            return;
+        }
+
+        if (shapeGridArea.contains (mouse))
+        {
+            const auto cellW = shapeGridArea.getWidth() / 3.0f;
+            const auto cellH = shapeGridArea.getHeight() / 3.0f;
+
+            const auto col = juce::jlimit (0, 2, (int) ((mouse.x - shapeGridArea.getX()) / cellW));
+            const auto row = juce::jlimit (0, 2, (int) ((mouse.y - shapeGridArea.getY()) / cellH));
+
+            auto toggleCorner = [&] (int bit)
+            {
+                roundedCornerMask ^= bit;
+            };
+
+            if (row == 0 && col == 0) toggleCorner (1);      // TL
+            else if (row == 0 && col == 2) toggleCorner (2); // TR
+            else if (row == 2 && col == 2) toggleCorner (4); // BR
+            else if (row == 2 && col == 0) toggleCorner (8); // BL
+            else if (row == 0 && col == 1) roundedCornerMask = roundedCornerMask == 3  ? 0 : 3;   // top
+            else if (row == 2 && col == 1) roundedCornerMask = roundedCornerMask == 12 ? 0 : 12;  // bottom
+            else if (row == 1 && col == 0) roundedCornerMask = roundedCornerMask == 9  ? 0 : 9;   // left
+            else if (row == 1 && col == 2) roundedCornerMask = roundedCornerMask == 6  ? 0 : 6;   // right
+            else if (row == 1 && col == 1) roundedCornerMask = roundedCornerMask == 15 ? 0 : 15;  // all/sharp
+
             previewShape = PreviewShape::rectangle;
             repaint();
             return;
@@ -1029,6 +1064,11 @@ void MainComponent::drawPreview (juce::Graphics& g, juce::Rectangle<float> area)
     beautyRow.removeFromLeft (6.0f);
     const auto radiusButton = beautyRow.removeFromLeft (78.0f);
 
+    auto shapeGridArea = area.reduced (18.0f)
+        .removeFromTop (126.0f)
+        .removeFromBottom (62.0f)
+        .removeFromLeft (62.0f);
+
     auto drawShapeButton = [&] (juce::Rectangle<float> button, const juce::String& text, bool selected)
     {
         g.setColour (juce::Colours::white.withAlpha (selected ? 0.18f : 0.07f));
@@ -1082,6 +1122,84 @@ void MainComponent::drawPreview (juce::Graphics& g, juce::Rectangle<float> area)
     drawShapeButton (ratioButton, "Ratio " + getAspectText(), previewShape == PreviewShape::rectangle);
     drawShapeButton (cornersButton, "Corner " + getCornerText(), roundedCornerMask != 0);
     drawShapeButton (radiusButton, "Rad " + juce::String (juce::roundToInt (cornerRadiusAmount * 100.0f)), roundedCornerMask != 0);
+
+    auto drawShapeGridCell = [&] (juce::Rectangle<float> cell, bool active, bool circular)
+    {
+        g.setColour (juce::Colours::white.withAlpha (active ? 0.18f : 0.055f));
+        g.fillRoundedRectangle (cell, 4.0f);
+
+        g.setColour (juce::Colours::white.withAlpha (active ? 0.78f : 0.22f));
+        g.drawRoundedRectangle (cell, 4.0f, active ? 1.4f : 1.0f);
+
+        auto mark = cell.reduced (5.0f);
+
+        g.setColour (juce::Colours::white.withAlpha (active ? 0.72f : 0.28f));
+
+        if (circular)
+            g.drawEllipse (mark, active ? 1.4f : 1.0f);
+        else
+            g.drawRect (mark, active ? 1.4f : 1.0f);
+    };
+
+    const auto gap = 3.0f;
+    const auto cellW = (shapeGridArea.getWidth() - gap * 2.0f) / 3.0f;
+    const auto cellH = (shapeGridArea.getHeight() - gap * 2.0f) / 3.0f;
+
+    for (int row = 0; row < 3; ++row)
+    {
+        for (int col = 0; col < 3; ++col)
+        {
+            const auto cell = juce::Rectangle<float>
+            {
+                shapeGridArea.getX() + (float) col * (cellW + gap),
+                shapeGridArea.getY() + (float) row * (cellH + gap),
+                cellW,
+                cellH
+            };
+
+            int bit = 0;
+            bool active = false;
+            bool circular = false;
+
+            if (row == 0 && col == 0) bit = 1;
+            else if (row == 0 && col == 2) bit = 2;
+            else if (row == 2 && col == 2) bit = 4;
+            else if (row == 2 && col == 0) bit = 8;
+
+            if (bit != 0)
+            {
+                active = (roundedCornerMask & bit) != 0;
+                circular = active;
+            }
+            else if (row == 1 && col == 1)
+            {
+                active = roundedCornerMask == 15;
+                circular = active;
+            }
+            else if (row == 0 && col == 1)
+            {
+                active = (roundedCornerMask & 3) == 3;
+                circular = active;
+            }
+            else if (row == 2 && col == 1)
+            {
+                active = (roundedCornerMask & 12) == 12;
+                circular = active;
+            }
+            else if (row == 1 && col == 0)
+            {
+                active = (roundedCornerMask & 9) == 9;
+                circular = active;
+            }
+            else if (row == 1 && col == 2)
+            {
+                active = (roundedCornerMask & 6) == 6;
+                circular = active;
+            }
+
+            drawShapeGridCell (cell, active, circular);
+        }
+    }
 
     auto shapeArea = area.reduced (84.0f, 144.0f);
 
