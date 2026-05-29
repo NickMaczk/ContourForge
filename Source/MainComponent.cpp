@@ -141,7 +141,7 @@ void MainComponent::mouseDown (const juce::MouseEvent& e)
     }
 
     {
-        auto previewControls = getPreviewArea().reduced (18.0f).removeFromTop (120.0f).removeFromRight (420.0f);
+        auto previewControls = getPreviewArea().reduced (18.0f).removeFromTop (120.0f).removeFromRight (500.0f);
 
         auto shapeRow = previewControls.removeFromTop (24.0f);
         previewControls.removeFromTop (8.0f);
@@ -158,6 +158,8 @@ void MainComponent::mouseDown (const juce::MouseEvent& e)
         const auto baseButton = shapeRow.removeFromLeft (76.0f);
         shapeRow.removeFromLeft (8.0f);
         const auto previewQualityButton = shapeRow.removeFromLeft (92.0f);
+        shapeRow.removeFromLeft (8.0f);
+        const auto gridButton = shapeRow.removeFromLeft (74.0f);
 
         const auto heightButton = modeRow.removeFromLeft (60.0f);
         modeRow.removeFromLeft (6.0f);
@@ -234,6 +236,18 @@ void MainComponent::mouseDown (const juce::MouseEvent& e)
             previewQualityDivisor = previewQualityDivisor == 2 ? 4
                 : previewQualityDivisor == 4 ? 8
                 : 2;
+
+            repaint();
+            return;
+        }
+
+        if (gridButton.contains (mouse))
+        {
+            gridDivisor = gridDivisor == 0 ? 4
+                : gridDivisor == 4 ? 8
+                : gridDivisor == 8 ? 16
+                : gridDivisor == 16 ? 32
+                : 0;
 
             repaint();
             return;
@@ -438,8 +452,14 @@ void MainComponent::mouseDoubleClick (const juce::MouseEvent& e)
     if (! graph.contains (e.position))
         return;
 
-    const auto x = juce::jlimit (0.0f, 1.0f, (e.position.x - graph.getX()) / graph.getWidth());
-    const auto y = juce::jlimit (0.0f, 1.0f, (graph.getBottom() - e.position.y) / graph.getHeight());
+    auto x = juce::jlimit (0.0f, 1.0f, (e.position.x - graph.getX()) / graph.getWidth());
+    auto y = juce::jlimit (0.0f, 1.0f, (graph.getBottom() - e.position.y) / graph.getHeight());
+
+    if (gridDivisor > 0)
+    {
+        x = juce::jlimit (0.0f, 1.0f, std::round (x * (float) gridDivisor) / (float) gridDivisor);
+        y = juce::jlimit (0.0f, 1.0f, std::round (y * (float) gridDivisor) / (float) gridDivisor);
+    }
 
     if (x <= 0.02f || x >= 0.98f)
         return;
@@ -506,6 +526,15 @@ MainComponent::ProfilePoint MainComponent::screenToProfile (juce::Point<float> p
     auto x = (p.x - graph.getX()) / graph.getWidth();
     auto y = (graph.getBottom() - p.y) / graph.getHeight();
 
+    auto snapToGrid = [&] (float value)
+    {
+        if (gridDivisor <= 0)
+            return value;
+
+        return juce::jlimit (0.0f, 1.0f,
+            std::round (value * (float) gridDivisor) / (float) gridDivisor);
+    };
+
     const auto isFirst = pointIndex == 0;
     const auto isLast = pointIndex == (int) profilePoints.size() - 1;
 
@@ -517,12 +546,12 @@ MainComponent::ProfilePoint MainComponent::screenToProfile (juce::Point<float> p
     {
         const auto minX = profilePoints[(size_t) pointIndex - 1].x + 0.025f;
         const auto maxX = profilePoints[(size_t) pointIndex + 1].x - 0.025f;
-        x = juce::jlimit (minX, maxX, x);
+        x = juce::jlimit (minX, maxX, snapToGrid (x));
     }
 
     ProfilePoint result = profilePoints[(size_t) pointIndex];
     result.x = juce::jlimit (0.0f, 1.0f, x);
-    result.y = juce::jlimit (0.0f, 1.0f, y);
+    result.y = snapToGrid (juce::jlimit (0.0f, 1.0f, y));
     return result;
 }
 
@@ -575,6 +604,7 @@ juce::var MainComponent::createProjectState() const
     root->setProperty ("glossAmount", glossAmount);
     root->setProperty ("beautyStrength", beautyStrength);
     root->setProperty ("previewQualityDivisor", previewQualityDivisor);
+    root->setProperty ("gridDivisor", gridDivisor);
 
     juce::Array<juce::var> points;
 
@@ -683,6 +713,12 @@ bool MainComponent::applyProjectState (const juce::var& state)
     if (loadedPreviewQualityDivisor == 2 || loadedPreviewQualityDivisor == 4 || loadedPreviewQualityDivisor == 8)
         previewQualityDivisor = loadedPreviewQualityDivisor;
 
+    const auto loadedGridDivisor = (int) root->getProperty ("gridDivisor");
+
+    if (loadedGridDivisor == 0 || loadedGridDivisor == 4 || loadedGridDivisor == 8
+        || loadedGridDivisor == 16 || loadedGridDivisor == 32)
+        gridDivisor = loadedGridDivisor;
+
     selectedPointIndex = -1;
     draggedPointIndex = -1;
 
@@ -723,11 +759,23 @@ void MainComponent::drawProfileEditor (juce::Graphics& g, juce::Rectangle<float>
     graph.removeFromBottom (28.0f);
     graph = graph.reduced (28.0f);
 
-    g.setColour (juce::Colours::white.withAlpha (0.08f));
-    for (int i = 0; i <= 4; ++i)
+    const auto gridSteps = gridDivisor > 0 ? gridDivisor : 4;
+
+    g.setColour (juce::Colours::white.withAlpha (gridDivisor > 0 ? 0.10f : 0.08f));
+
+    for (int i = 0; i <= gridSteps; ++i)
     {
-        const auto y = graph.getY() + graph.getHeight() * i / 4.0f;
+        const auto y = graph.getY() + graph.getHeight() * i / (float) gridSteps;
         g.drawHorizontalLine ((int) y, graph.getX(), graph.getRight());
+    }
+
+    if (gridDivisor > 0)
+    {
+        for (int i = 0; i <= gridDivisor; ++i)
+        {
+            const auto x = graph.getX() + graph.getWidth() * i / (float) gridDivisor;
+            g.drawVerticalLine ((int) x, graph.getY(), graph.getBottom());
+        }
     }
 
     juce::Path curve;
@@ -796,6 +844,7 @@ void MainComponent::drawPreview (juce::Graphics& g, juce::Rectangle<float> area)
         + " | Elev " + juce::String (juce::roundToInt (lightElevation * 100.0f)) + "%"
         + " | Gloss " + juce::String (juce::roundToInt (glossAmount * 100.0f)) + "%"
         + " | Depth " + juce::String (juce::roundToInt (beautyStrength * 100.0f)) + "%"
+        + " | Grid " + (gridDivisor == 0 ? juce::String ("Off") : "/" + juce::String (gridDivisor))
         + " | Drag /" + juce::String (previewQualityDivisor);
 
     auto infoRow = area.reduced (18.0f).removeFromTop (54.0f).removeFromBottom (18.0f);
@@ -805,7 +854,7 @@ void MainComponent::drawPreview (juce::Graphics& g, juce::Rectangle<float> area)
     g.setFont (juce::FontOptions (11.0f));
     g.drawText (infoText, infoRow, juce::Justification::left);
 
-    auto previewControls = area.reduced (18.0f).removeFromTop (120.0f).removeFromRight (420.0f);
+    auto previewControls = area.reduced (18.0f).removeFromTop (120.0f).removeFromRight (500.0f);
 
     auto shapeRow = previewControls.removeFromTop (24.0f);
     previewControls.removeFromTop (8.0f);
@@ -822,6 +871,8 @@ void MainComponent::drawPreview (juce::Graphics& g, juce::Rectangle<float> area)
     const auto baseButton = shapeRow.removeFromLeft (76.0f);
     shapeRow.removeFromLeft (8.0f);
     const auto previewQualityButton = shapeRow.removeFromLeft (92.0f);
+    shapeRow.removeFromLeft (8.0f);
+    const auto gridButton = shapeRow.removeFromLeft (74.0f);
 
     const auto heightButton = modeRow.removeFromLeft (60.0f);
     modeRow.removeFromLeft (6.0f);
@@ -879,6 +930,7 @@ void MainComponent::drawPreview (juce::Graphics& g, juce::Rectangle<float> area)
     g.drawText ("Base", baseButton.reduced (6.0f, 0.0f), juce::Justification::centred);
 
     drawShapeButton (previewQualityButton, "Drag /" + juce::String (previewQualityDivisor), false);
+    drawShapeButton (gridButton, gridDivisor == 0 ? "Grid Off" : "Grid /" + juce::String (gridDivisor), gridDivisor > 0);
     drawShapeButton (heightButton, "Height", previewMode == PreviewMode::heightMap);
     drawShapeButton (normalButton, "Normal", previewMode == PreviewMode::normalMap);
     drawShapeButton (materialButton, "Beauty", previewMode == PreviewMode::material);
@@ -1266,6 +1318,20 @@ void MainComponent::drawPreview (juce::Graphics& g, juce::Rectangle<float> area)
         0,
         previewImage.getWidth(),
         previewImage.getHeight());
+
+    if (gridDivisor > 0)
+    {
+        g.setColour (juce::Colours::white.withAlpha (0.055f));
+
+        for (int i = 0; i <= gridDivisor; ++i)
+        {
+            const auto x = shapeArea.getX() + shapeArea.getWidth() * i / (float) gridDivisor;
+            const auto y = shapeArea.getY() + shapeArea.getHeight() * i / (float) gridDivisor;
+
+            g.drawVerticalLine ((int) x, shapeArea.getY(), shapeArea.getBottom());
+            g.drawHorizontalLine ((int) y, shapeArea.getX(), shapeArea.getRight());
+        }
+    }
 
     g.setColour (juce::Colours::white.withAlpha (0.12f));
 

@@ -55,6 +55,7 @@ private:
     float lightElevation = 0.62f;
     float glossAmount = 0.45f;
     float beautyStrength = 1.0f;
+    int gridDivisor = 0;
     int previewQualityDivisor = 2;
 
     juce::String statusText;
